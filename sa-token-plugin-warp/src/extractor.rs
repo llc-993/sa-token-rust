@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Warp 提取器
 
 use crate::filter::TokenData;
@@ -37,4 +39,3 @@ impl From<TokenData> for Result<LoginIdExtractor, warp::Rejection> {
         }
     }
 }
-

@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! sa-token-macro 基础使用示例
 
 use sa_token_macro::*;
@@ -162,4 +164,3 @@ async fn main() {
     
     println!("\n注意：这些宏主要是添加编译时标记，实际的认证逻辑在框架中间件中执行。");
 }
-

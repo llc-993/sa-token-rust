@@ -1,11 +1,11 @@
+// Author: 金书记
+//
 //! Rocket Fairing (中间件)
 
 use rocket::{Request, Data, Response};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Status;
 use crate::SaTokenState;
-use crate::adapter::RocketRequestAdapter;
-use sa_token_adapter::context::SaRequest;
 use sa_token_core::token::TokenValue;
 
 /// sa-token Fairing - 提取并验证 token
@@ -30,7 +30,26 @@ impl Fairing for SaTokenFairing {
     
     async fn on_request(&self, request: &mut Request<'_>, _data: &mut Data<'_>) {
         // 提取 token
-        if let Some(token_str) = extract_token_from_request(request, &self.state) {
+        let token_str = {
+            let token_name = &self.state.manager.config.token_name;
+            
+            // 1. 从 Header 获取
+            if let Some(header_val) = request.headers().get_one(token_name) {
+                Some(extract_bearer_token(header_val))
+            }
+            // 2. 从 Cookie 获取
+            else if let Some(cookie) = request.cookies().get(token_name) {
+                Some(cookie.value().to_string())
+            }
+            // 3. 从 Query 参数获取
+            else if let Some(query) = request.uri().query() {
+                parse_query_param(query.as_str(), token_name)
+            } else {
+                None
+            }
+        };
+        
+        if let Some(token_str) = token_str {
             let token = TokenValue::new(token_str);
             
             // 验证 token
@@ -69,7 +88,26 @@ impl Fairing for SaCheckLoginFairing {
     
     async fn on_request(&self, request: &mut Request<'_>, _data: &mut Data<'_>) {
         // 提取 token
-        if let Some(token_str) = extract_token_from_request(request, &self.state) {
+        let token_str = {
+            let token_name = &self.state.manager.config.token_name;
+            
+            // 1. 从 Header 获取
+            if let Some(header_val) = request.headers().get_one(token_name) {
+                Some(extract_bearer_token(header_val))
+            }
+            // 2. 从 Cookie 获取
+            else if let Some(cookie) = request.cookies().get(token_name) {
+                Some(cookie.value().to_string())
+            }
+            // 3. 从 Query 参数获取
+            else if let Some(query) = request.uri().query() {
+                parse_query_param(query.as_str(), token_name)
+            } else {
+                None
+            }
+        };
+        
+        if let Some(token_str) = token_str {
             let token = TokenValue::new(token_str);
             
             // 验证 token
@@ -105,29 +143,6 @@ impl Fairing for SaCheckLoginFairing {
     }
 }
 
-/// 从请求中提取 token
-fn extract_token_from_request(request: &Request<'_>, state: &SaTokenState) -> Option<String> {
-    let adapter = RocketRequestAdapter::new(request);
-    let token_name = &state.manager.config.token_name;
-    
-    // 1. 优先从 Header 中获取
-    if let Some(token) = adapter.get_header(token_name) {
-        return Some(extract_bearer_token(&token));
-    }
-    
-    // 2. 从 Cookie 中获取
-    if let Some(token) = adapter.get_cookie(token_name) {
-        return Some(token);
-    }
-    
-    // 3. 从 Query 参数中获取
-    if let Some(token) = adapter.get_param(token_name) {
-        return Some(token);
-    }
-    
-    None
-}
-
 /// 提取 Bearer token
 fn extract_bearer_token(token: &str) -> String {
     if token.starts_with("Bearer ") {
@@ -137,3 +152,14 @@ fn extract_bearer_token(token: &str) -> String {
     }
 }
 
+/// 解析查询参数
+fn parse_query_param(query: &str, name: &str) -> Option<String> {
+    for pair in query.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            if key == name {
+                return urlencoding::decode(value).ok().map(|s| s.to_string());
+            }
+        }
+    }
+    None
+}

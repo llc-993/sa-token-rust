@@ -1,0 +1,19 @@
+[package]
+name = "sa-token-adapter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Adapter traits for sa-token-rust framework integration"
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+http = { workspace = true }

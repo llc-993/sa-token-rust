@@ -17,23 +17,26 @@
 
 ## 初始化
 
-在使用 `StpUtil` 之前，必须使用 `SaTokenManager` 实例初始化它：
+当您使用任何 Web 框架插件创建 `SaTokenState` 时，`StpUtil` 会自动初始化：
 
 ```rust
-use sa_token_core::{StpUtil, SaTokenManager};
+use sa_token_core::StpUtil;
+use sa_token_plugin_axum::SaTokenState;  // 或其他框架插件
 use sa_token_storage_memory::MemoryStorage;
 use std::sync::Arc;
 
-// 创建管理器
-let storage = Arc::new(MemoryStorage::new());
-let config = SaTokenConfig::default();
-let manager = SaTokenManager::new(storage, config);
+// 构建状态时 StpUtil 会自动初始化
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .token_name("Authorization")
+    .timeout(86400)
+    .build();
 
-// 初始化 StpUtil（仅在应用启动时调用一次）
-StpUtil::init_manager(manager);
+// StpUtil 已就绪，可以直接使用！
+StpUtil::login("user_id").await?;
 ```
 
-**注意**：`init_manager` 应该只在应用初始化时调用一次。多次调用会导致 panic。
+**注意**：初始化在 `SaTokenState::builder().build()` 中自动完成，所以您无需手动调用任何初始化方法。这适用于所有支持的 Web 框架（Axum、Actix-web、Poem、Rocket、Warp）。
 
 ## 登录操作
 
@@ -441,7 +444,7 @@ let token = StpUtil::login("user_10001").await?;
 
 ## 最佳实践
 
-1. **只初始化一次**：只在应用启动时调用一次 `StpUtil::init_manager()`。
+1. **自动初始化**：`StpUtil` 在构建 `SaTokenState` 时自动初始化，无需手动初始化。
 
 2. **错误处理**：始终适当处理 `StpUtil` 方法的错误。
 

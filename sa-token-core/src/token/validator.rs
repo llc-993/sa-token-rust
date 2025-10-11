@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Token 验证器
 
 use crate::error::{SaTokenError, SaTokenResult};
@@ -29,4 +31,3 @@ impl TokenValidator {
         Ok(())
     }
 }
-

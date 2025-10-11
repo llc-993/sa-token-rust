@@ -1,7 +1,11 @@
+// Author: 金书记
+//
 //! Token 管理器 - sa-token 的核心入口
 
 use std::sync::Arc;
+use std::collections::HashMap;
 use chrono::{Duration, Utc};
+use tokio::sync::RwLock;
 use sa_token_adapter::storage::SaStorage;
 use crate::config::SaTokenConfig;
 use crate::error::{SaTokenError, SaTokenResult};
@@ -9,15 +13,25 @@ use crate::token::{TokenInfo, TokenValue, TokenGenerator};
 use crate::session::SaSession;
 
 /// sa-token 管理器
+#[derive(Clone)]
 pub struct SaTokenManager {
-    storage: Arc<dyn SaStorage>,
-    config: SaTokenConfig,
+    pub(crate) storage: Arc<dyn SaStorage>,
+    pub config: SaTokenConfig,
+    /// 用户权限映射 user_id -> permissions
+    pub(crate) user_permissions: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    /// 用户角色映射 user_id -> roles
+    pub(crate) user_roles: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
 impl SaTokenManager {
     /// 创建新的管理器实例
     pub fn new(storage: Arc<dyn SaStorage>, config: SaTokenConfig) -> Self {
-        Self { storage, config }
+        Self { 
+            storage, 
+            config,
+            user_permissions: Arc::new(RwLock::new(HashMap::new())),
+            user_roles: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
     
     /// 登录：为指定账号创建 token
@@ -44,6 +58,11 @@ impl SaTokenManager {
         self.storage.set(&key, &value, self.config.timeout_duration()).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
         
+        // 保存 login_id 到 token 的映射（用于根据 login_id 查找 token）
+        let login_token_key = format!("sa:login:token:{}", login_id);
+        self.storage.set(&login_token_key, token.as_str(), self.config.timeout_duration()).await
+            .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        
         // 如果不允许并发登录，踢掉之前的 token
         if !self.config.is_concurrent {
             self.logout_by_login_id(&login_id).await?;
@@ -61,7 +80,7 @@ impl SaTokenManager {
     }
     
     /// 根据登录 ID 登出所有 token
-    pub async fn logout_by_login_id(&self, login_id: &str) -> SaTokenResult<()> {
+    pub async fn logout_by_login_id(&self, _login_id: &str) -> SaTokenResult<()> {
         // TODO: 实现根据登录 ID 查找所有 token 并删除
         // 这需要维护 login_id -> tokens 的映射
         Ok(())
@@ -82,6 +101,19 @@ impl SaTokenManager {
             // 删除过期的 token
             self.logout(token).await?;
             return Err(SaTokenError::TokenExpired);
+        }
+        
+        // 如果开启了自动续签，则自动续签
+        // 注意：为了避免递归调用 get_token_info，这里直接更新过期时间
+        if self.config.auto_renew {
+            let renew_timeout = if self.config.active_timeout > 0 {
+                self.config.active_timeout
+            } else {
+                self.config.timeout
+            };
+            
+            // 直接续签（不递归调用 get_token_info）
+            let _ = self.renew_timeout_internal(token, renew_timeout, &token_info).await;
         }
         
         Ok(token_info)
@@ -127,6 +159,42 @@ impl SaTokenManager {
         Ok(())
     }
     
+    /// 续期 token（重置过期时间）
+    pub async fn renew_timeout(
+        &self,
+        token: &TokenValue,
+        timeout_seconds: i64,
+    ) -> SaTokenResult<()> {
+        let token_info = self.get_token_info(token).await?;
+        self.renew_timeout_internal(token, timeout_seconds, &token_info).await
+    }
+    
+    /// 内部续期方法（避免递归调用 get_token_info）
+    async fn renew_timeout_internal(
+        &self,
+        token: &TokenValue,
+        timeout_seconds: i64,
+        token_info: &TokenInfo,
+    ) -> SaTokenResult<()> {
+        let mut new_token_info = token_info.clone();
+        
+        // 设置新的过期时间
+        use chrono::{Utc, Duration};
+        let new_expire_time = Utc::now() + Duration::seconds(timeout_seconds);
+        new_token_info.expire_time = Some(new_expire_time);
+        
+        // 保存更新后的 token 信息
+        let key = format!("sa:token:{}", token.as_str());
+        let value = serde_json::to_string(&new_token_info)
+            .map_err(|e| SaTokenError::SerializationError(e))?;
+        
+        let timeout = std::time::Duration::from_secs(timeout_seconds as u64);
+        self.storage.set(&key, &value, Some(timeout)).await
+            .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        
+        Ok(())
+    }
+    
     /// 踢人下线
     pub async fn kick_out(&self, login_id: &str) -> SaTokenResult<()> {
         self.logout_by_login_id(login_id).await?;
@@ -134,4 +202,3 @@ impl SaTokenManager {
         Ok(())
     }
 }
-

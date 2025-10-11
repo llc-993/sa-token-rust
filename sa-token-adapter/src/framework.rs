@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! 框架集成适配器trait定义
 
 use async_trait::async_trait;
@@ -18,4 +20,3 @@ pub trait FrameworkAdapter: Send + Sync {
         Ok(())
     }
 }
-

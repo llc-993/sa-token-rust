@@ -1,6 +1,9 @@
+// Author: 金书记
+//
 //! 忽略认证宏
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{parse_macro_input, Item};
 
@@ -84,37 +87,35 @@ use syn::{parse_macro_input, Item};
 pub fn sa_ignore_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as Item);
     
-    match input {
+    let expanded: TokenStream2 = match input {
         Item::Fn(item_fn) => {
             // 为函数添加忽略标记
-            let expanded = quote! {
+            quote! {
                 #[doc(hidden)]
                 #[cfg_attr(feature = "sa-token-metadata", sa_token_ignore = "true")]
                 #item_fn
-            };
-            TokenStream::from(expanded)
+            }
         }
         Item::Struct(item_struct) => {
             // 为结构体添加忽略标记
-            let expanded = quote! {
+            quote! {
                 #[doc(hidden)]
                 #[cfg_attr(feature = "sa-token-metadata", sa_token_ignore = "true")]
                 #item_struct
-            };
-            TokenStream::from(expanded)
+            }
         }
         Item::Impl(item_impl) => {
             // 为impl块添加忽略标记
-            let expanded = quote! {
+            quote! {
                 #[cfg_attr(feature = "sa-token-metadata", sa_token_ignore = "true")]
                 #item_impl
-            };
-            TokenStream::from(expanded)
+            }
         }
         _ => {
             // 其他类型的item直接返回
-            TokenStream::from(quote! { #input })
+            quote! { #input }
         }
-    }
+    };
+    
+    expanded.into()
 }
-

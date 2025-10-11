@@ -1,9 +1,11 @@
+// Author: 金书记
+//
 //! Actix-web请求/响应适配器
 
-use std::collections::HashMap;
 use actix_web::{HttpRequest, HttpResponse};
 use sa_token_adapter::context::{SaRequest, SaResponse, CookieOptions};
 use serde::Serialize;
+use std::collections::HashMap;
 
 /// Actix-web请求适配器
 pub struct ActixRequestAdapter<'a> {
@@ -29,8 +31,16 @@ impl<'a> SaRequest for ActixRequestAdapter<'a> {
     }
     
     fn get_param(&self, name: &str) -> Option<String> {
+        // Actix-web 中 match_info 用于路径参数
+        // 对于查询参数，需要手动解析
         self.request.match_info().get(name)
             .map(|s| s.to_string())
+            .or_else(|| {
+                // 解析查询字符串
+                parse_query_string(self.request.query_string())
+                    .get(name)
+                    .cloned()
+            })
     }
     
     fn get_path(&self) -> String {
@@ -49,18 +59,39 @@ impl<'a> SaRequest for ActixRequestAdapter<'a> {
 
 /// Actix-web响应适配器
 pub struct ActixResponseAdapter {
-    builder: HttpResponse,
+    status: actix_web::http::StatusCode,
+    headers: Vec<(String, String)>,
+    cookies: Vec<actix_web::cookie::Cookie<'static>>,
+    body: Option<String>,
 }
 
 impl ActixResponseAdapter {
     pub fn new() -> Self {
         Self {
-            builder: HttpResponse::Ok(),
+            status: actix_web::http::StatusCode::OK,
+            headers: Vec::new(),
+            cookies: Vec::new(),
+            body: None,
         }
     }
     
+    /// 构建 HttpResponse
     pub fn build(self) -> HttpResponse {
-        self.builder.finish()
+        let mut builder = HttpResponse::build(self.status);
+        
+        for (name, value) in self.headers {
+            builder.insert_header((name, value));
+        }
+        
+        for cookie in self.cookies {
+            builder.cookie(cookie);
+        }
+        
+        if let Some(body) = self.body {
+            builder.body(body)
+        } else {
+            builder.finish()
+        }
     }
 }
 
@@ -72,13 +103,13 @@ impl Default for ActixResponseAdapter {
 
 impl SaResponse for ActixResponseAdapter {
     fn set_header(&mut self, name: &str, value: &str) {
-        self.builder.append_header((name, value));
+        self.headers.push((name.to_string(), value.to_string()));
     }
     
     fn set_cookie(&mut self, name: &str, value: &str, options: CookieOptions) {
-        use actix_web::cookie::Cookie;
+        use actix_web::cookie::{Cookie, SameSite};
         
-        let mut cookie = Cookie::new(name, value);
+        let mut cookie = Cookie::new(name.to_string(), value.to_string());
         
         if let Some(domain) = options.domain {
             cookie.set_domain(domain);
@@ -92,18 +123,42 @@ impl SaResponse for ActixResponseAdapter {
         cookie.set_http_only(options.http_only);
         cookie.set_secure(options.secure);
         
-        self.builder.cookie(cookie);
+        if let Some(same_site) = options.same_site {
+            use sa_token_adapter::context::SameSite as SaSameSite;
+            let ss = match same_site {
+                SaSameSite::Strict => SameSite::Strict,
+                SaSameSite::Lax => SameSite::Lax,
+                SaSameSite::None => SameSite::None,
+            };
+            cookie.set_same_site(ss);
+        }
+        
+        self.cookies.push(cookie);
     }
     
     fn set_status(&mut self, status: u16) {
-        if let Some(status_code) = actix_web::http::StatusCode::from_u16(status).ok() {
-            self.builder.status(status_code);
+        if let Ok(status_code) = actix_web::http::StatusCode::from_u16(status) {
+            self.status = status_code;
         }
     }
     
     fn set_json_body<T: Serialize>(&mut self, body: T) -> Result<(), serde_json::Error> {
-        self.builder.json(body);
+        let json = serde_json::to_string(&body)?;
+        self.body = Some(json);
+        self.headers.push(("Content-Type".to_string(), "application/json".to_string()));
         Ok(())
     }
 }
 
+/// 解析查询字符串
+fn parse_query_string(query: &str) -> HashMap<String, String> {
+    let mut params = HashMap::new();
+    for pair in query.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            if let Ok(decoded_value) = urlencoding::decode(value) {
+                params.insert(key.to_string(), decoded_value.to_string());
+            }
+        }
+    }
+    params
+}

@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Token 生成器
 
 use uuid::Uuid;
@@ -31,7 +33,8 @@ impl TokenGenerator {
     /// 生成随机字符串
     pub fn generate_random(length: usize) -> TokenValue {
         use sha2::{Sha256, Digest};
-        let random_bytes = Uuid::new_v4().as_bytes();
+        let uuid = Uuid::new_v4();
+        let random_bytes = uuid.as_bytes();
         let hash = Sha256::digest(random_bytes);
         let hex_string = hex::encode(hash);
         TokenValue::new(hex_string[..length.min(hex_string.len())].to_string())
@@ -39,4 +42,3 @@ impl TokenGenerator {
 }
 
 // 添加 hex 依赖
-

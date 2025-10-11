@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Session 管理模块
 
 use std::collections::HashMap;
@@ -55,4 +57,3 @@ impl SaSession {
         self.data.contains_key(key)
     }
 }
-

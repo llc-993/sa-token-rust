@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! 错误类型定义
 
 use thiserror::Error;
@@ -45,4 +47,3 @@ pub enum SaTokenError {
     #[error("Internal error: {0}")]
     InternalError(String),
 }
-

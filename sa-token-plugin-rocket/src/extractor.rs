@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Rocket Request Guards (提取器)
 
 use rocket::request::{FromRequest, Request, Outcome};
@@ -12,10 +14,9 @@ impl<'r> FromRequest<'r> for SaTokenGuard {
     type Error = ();
     
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        if let Some(token) = request.local_cache(|| None::<TokenValue>) {
-            if let Some(token) = token {
-                return Outcome::Success(SaTokenGuard(token.clone()));
-            }
+        let token = request.local_cache(|| None::<TokenValue>);
+        if let Some(token) = token {
+            return Outcome::Success(SaTokenGuard(token.clone()));
         }
         
         Outcome::Error((Status::Unauthorized, ()))
@@ -43,13 +44,11 @@ impl<'r> FromRequest<'r> for LoginIdGuard {
     type Error = ();
     
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        if let Some(login_id) = request.local_cache(|| None::<String>) {
-            if let Some(login_id) = login_id {
-                return Outcome::Success(LoginIdGuard(login_id.clone()));
-            }
+        let login_id = request.local_cache(|| None::<String>);
+        if let Some(login_id) = login_id {
+            return Outcome::Success(LoginIdGuard(login_id.clone()));
         }
         
         Outcome::Error((Status::Unauthorized, ()))
     }
 }
-

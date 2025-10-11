@@ -1,281 +1,336 @@
 # sa-token-rust
 
-[![Crates.io](https://img.shields.io/crates/v/sa-token-rust.svg)](https://crates.io/crates/sa-token-rust)
-[![Documentation](https://docs.rs/sa-token-rust/badge.svg)](https://docs.rs/sa-token-rust)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
+[中文文档](README_zh-CN.md) | English
 
-🦀 一个强大的Rust认证授权框架，灵感来自Java的sa-token。
+A lightweight, high-performance authentication and authorization framework for Rust, inspired by [sa-token](https://github.com/dromara/sa-token).
 
-## ✨ 特性
+## ✨ Features
 
-- 🔐 **登录认证** - Token生成、验证、刷新
-- 🛡️ **权限验证** - 基于角色/权限的访问控制
-- 📦 **Session管理** - 灵活的会话存储与管理
-- 🚀 **框架无关** - 核心逻辑与Web框架解耦
-- 🔌 **多框架支持** - Axum、Actix-web、Rocket、Warp、Poem
-- 💾 **多存储后端** - 内存、Redis、数据库
-- ⚡ **高性能** - 基于Tokio异步运行时
-- 🎯 **类型安全** - 充分利用Rust的类型系统
-- 🔧 **易于扩展** - 基于trait的适配器模式
+- 🚀 **Multiple Web Framework Support**: Axum, Actix-web, Poem, Rocket, Warp
+- 🔐 **Complete Authentication**: Login, logout, token validation, session management
+- 🛡️ **Fine-grained Authorization**: Permission and role-based access control
+- 💾 **Flexible Storage**: Memory, Redis, and database storage backends
+- 🎯 **Easy to Use**: Procedural macros and utility classes for simple integration
+- ⚡ **High Performance**: Zero-copy design, async/await support
+- 🔧 **Highly Configurable**: Token timeout, cookie options, custom token names
 
-## 📦 项目结构
+## 📦 Architecture
 
 ```
 sa-token-rust/
-├── sa-token-core/              # 核心库（框架无关）
-├── sa-token-adapter/           # 适配器trait定义
-├── sa-token-macro/             # 过程宏支持
-├── sa-token-storage-memory/    # 内存存储
-├── sa-token-storage-redis/     # Redis存储
-├── sa-token-storage-database/  # 数据库存储（占位符）
-├── sa-token-plugin-axum/       # Axum集成
-├── sa-token-plugin-actix-web/  # Actix-web集成
-├── sa-token-plugin-rocket/     # Rocket集成（占位符）
-├── sa-token-plugin-warp/       # Warp集成（占位符）
-└── sa-token-plugin-poem/       # Poem集成（占位符）
+├── sa-token-core/              # Core library (Token, Session, Manager)
+├── sa-token-adapter/           # Adapter interfaces (Storage, Request/Response)
+├── sa-token-macro/             # Procedural macros (#[sa_check_login], etc.)
+├── sa-token-storage-memory/    # Memory storage implementation
+├── sa-token-storage-redis/     # Redis storage implementation
+├── sa-token-storage-database/  # Database storage implementation (placeholder)
+├── sa-token-plugin-axum/       # Axum framework integration
+├── sa-token-plugin-actix-web/  # Actix-web framework integration
+├── sa-token-plugin-poem/       # Poem framework integration
+├── sa-token-plugin-rocket/     # Rocket framework integration
+├── sa-token-plugin-warp/       # Warp framework integration
+└── examples/                   # Example projects
+    ├── axum-full-example/      # Complete Axum example
+    └── poem-full-example/      # Complete Poem example
 ```
 
-## 🚀 快速开始
+## 🎯 Core Components
 
-### 使用Axum
+### 1. **sa-token-core**
+Core authentication and authorization logic:
+- `SaTokenManager`: Main manager for token and session operations
+- `StpUtil`: Utility class providing simplified API ([Documentation](docs/StpUtil.md))
+- Token generation, validation, and refresh
+- Session management
+- Permission and role checking
+
+### 2. **sa-token-adapter**
+Abstraction layer for framework integration:
+- `SaStorage`: Storage interface for tokens and sessions
+- `SaRequest` / `SaResponse`: Request/response abstraction
+
+### 3. **sa-token-macro**
+Procedural macros for annotation-style authentication:
+- `#[sa_check_login]`: Require login
+- `#[sa_check_permission("user:list")]`: Check permission ([Matching Rules](docs/PermissionMatching.md))
+- `#[sa_check_role("admin")]`: Check role
+- `#[sa_check_permissions_and(...)]`: Check multiple permissions (AND)
+- `#[sa_check_permissions_or(...)]`: Check multiple permissions (OR)
+- `#[sa_ignore]`: Skip authentication
+
+### 4. **Web Framework Plugins**
+All plugins provide:
+- State management with Builder pattern
+- Dual middleware (basic + login-required)
+- Three extractors (required, optional, LoginId)
+- Request/Response adapters
+- Token extraction from Header/Cookie/Query
+- Bearer token support
+
+## 🚀 Quick Start
+
+### 1. Add Dependencies
 
 ```toml
 [dependencies]
 sa-token-core = "0.1"
 sa-token-storage-memory = "0.1"
-sa-token-plugin-axum = "0.1"
+sa-token-plugin-axum = "0.1"  # Choose your framework
 tokio = { version = "1", features = ["full"] }
 axum = "0.7"
 ```
 
+### 2. Initialize sa-token
+
 ```rust
-use std::sync::Arc;
-use axum::{Router, routing::{get, post}, Json};
-use sa_token_core::{SaTokenConfig, SaTokenManager};
+use sa_token_core::StpUtil;
+use sa_token_plugin_axum::SaTokenState;
 use sa_token_storage_memory::MemoryStorage;
-use sa_token_plugin_axum::{SaTokenLayer, SaTokenState};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    // 创建存储
-    let storage = Arc::new(MemoryStorage::new());
+    // Create state (StpUtil is automatically initialized)
+    let state = SaTokenState::builder()
+        .storage(Arc::new(MemoryStorage::new()))
+        .token_name("Authorization")
+        .timeout(86400)  // 24 hours
+        .build();
     
-    // 创建配置
-    let config = SaTokenConfig::default();
-    
-    // 创建状态
-    let state = SaTokenState::new(storage, config);
-    
-    // 创建路由
-    let app = Router::new()
-        .route("/login", post(login))
-        .route("/user/info", get(user_info))
-        .layer(SaTokenLayer::new(state.clone()))
-        .with_state(state);
-    
-    // 启动服务器
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-        .await
-        .unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-
-async fn login(state: axum::extract::State<SaTokenState>) -> Json<String> {
-    let token = state.manager.login("user_123").await.unwrap();
-    Json(token.to_string())
-}
-
-async fn user_info() -> &'static str {
-    "User info"
+    // StpUtil is ready to use!
+    // Your application code...
 }
 ```
 
-### 使用Actix-web
-
-```toml
-[dependencies]
-sa-token-core = "0.1"
-sa-token-storage-memory = "0.1"
-sa-token-plugin-actix-web = "0.1"
-tokio = { version = "1", features = ["full"] }
-actix-web = "4"
-```
+### 3. User Login
 
 ```rust
-use std::sync::Arc;
-use actix_web::{web, App, HttpServer, HttpResponse};
-use sa_token_core::SaTokenConfig;
-use sa_token_storage_memory::MemoryStorage;
-use sa_token_plugin_actix_web::{SaTokenMiddleware, SaTokenAppState};
+use sa_token_core::StpUtil;
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    let storage = Arc::new(MemoryStorage::new());
-    let config = SaTokenConfig::default();
-    let state = SaTokenAppState::new(storage, config);
-    
-    HttpServer::new(move || {
-        App::new()
-            .app_data(state.clone())
-            .wrap(SaTokenMiddleware)
-            .route("/login", web::post().to(login))
-            .route("/user/info", web::get().to(user_info))
-    })
-    .bind("127.0.0.1:8080")?
-    .run()
+// User login
+let token = StpUtil::login("user_id_10001").await?;
+println!("Token: {}", token.value());
+
+// Set permissions and roles
+StpUtil::set_permissions(
+    "user_id_10001",
+    vec!["user:list".to_string(), "user:add".to_string()]
+).await?;
+
+StpUtil::set_roles(
+    "user_id_10001",
+    vec!["admin".to_string()]
+).await?;
+```
+
+### 4. Check Authentication (Axum Example)
+
+```rust
+use axum::{Router, routing::get};
+use sa_token_plugin_axum::{SaTokenMiddleware, LoginIdExtractor};
+
+async fn user_info(LoginIdExtractor(login_id): LoginIdExtractor) -> String {
+    format!("Current user: {}", login_id)
+}
+
+async fn admin_panel(login_id: LoginIdExtractor) -> String {
+    // Check permission
+    if !StpUtil::has_permission(&login_id.0, "admin:panel").await {
+        return "No permission".to_string();
+    }
+    format!("Welcome admin: {}", login_id.0)
+}
+
+let app = Router::new()
+    .route("/user/info", get(user_info))
+    .route("/admin/panel", get(admin_panel))
+    .layer(SaTokenMiddleware::new(state));
+```
+
+### 5. Using Procedural Macros
+
+```rust
+use sa_token_macro::*;
+
+#[sa_check_login]
+async fn protected_route() -> &'static str {
+    "This route requires login"
+}
+
+#[sa_check_permission("user:delete")]
+async fn delete_user(user_id: String) -> &'static str {
+    "User deleted"
+}
+
+#[sa_check_role("admin")]
+async fn admin_only() -> &'static str {
+    "Admin only content"
+}
+```
+
+## 📚 Framework Integration Examples
+
+### Axum
+
+```rust
+use axum::{Router, routing::{get, post}};
+use sa_token_plugin_axum::{SaTokenState, SaTokenMiddleware, LoginIdExtractor};
+
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .build();
+
+let app = Router::new()
+    .route("/user/info", get(user_info))
+    .layer(SaTokenMiddleware::new(state));
+```
+
+### Actix-web
+
+```rust
+use actix_web::{App, HttpServer, web};
+use sa_token_plugin_actix_web::{SaTokenState, SaTokenMiddleware, LoginIdExtractor};
+
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .build();
+
+HttpServer::new(move || {
+    App::new()
+        .app_data(state.clone())
+        .wrap(SaTokenMiddleware::new((*state).clone()))
+        .route("/user/info", web::get().to(user_info))
+})
+.bind("127.0.0.1:8080")?
+.run()
+.await
+```
+
+### Poem
+
+```rust
+use poem::{Route, Server};
+use sa_token_plugin_poem::{SaTokenState, SaTokenMiddleware, LoginIdExtractor};
+
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .build();
+
+let app = Route::new()
+    .at("/user/info", poem::get(user_info))
+    .with(SaTokenMiddleware::new(state));
+
+Server::new(TcpListener::bind("127.0.0.1:8080"))
+    .run(app)
     .await
+```
+
+### Rocket
+
+```rust
+use rocket::{launch, get, routes};
+use sa_token_plugin_rocket::{SaTokenState, SaTokenFairing, LoginIdGuard};
+
+#[get("/user/info")]
+fn user_info(login_id: LoginIdGuard) -> String {
+    format!("User: {}", login_id.0)
 }
 
-async fn login(state: web::Data<SaTokenAppState>) -> HttpResponse {
-    let token = state.manager.login("user_123").await.unwrap();
-    HttpResponse::Ok().json(token.to_string())
-}
-
-async fn user_info() -> HttpResponse {
-    HttpResponse::Ok().body("User info")
+#[launch]
+fn rocket() -> _ {
+    let state = SaTokenState::builder()
+        .storage(Arc::new(MemoryStorage::new()))
+        .build();
+    
+    rocket::build()
+        .attach(SaTokenFairing::new(state))
+        .mount("/", routes![user_info])
 }
 ```
 
-## 📚 核心概念
-
-### Token管理
+### Warp
 
 ```rust
-// 登录
-let token = manager.login("user_123").await?;
+use warp::Filter;
+use sa_token_plugin_warp::{SaTokenState, sa_token_filter};
 
-// 登出
-manager.logout(&token).await?;
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .build();
 
-// 验证token
-let is_valid = manager.is_valid(&token).await;
+let routes = warp::path("user")
+    .and(warp::path("info"))
+    .and(sa_token_filter(state))
+    .map(|token_data| {
+        format!("User info")
+    });
 
-// 获取token信息
-let token_info = manager.get_token_info(&token).await?;
-
-// 踢人下线
-manager.kick_out("user_123").await?;
+warp::serve(routes)
+    .run(([127, 0, 0, 1], 8080))
+    .await;
 ```
 
-### Session管理
+## 📖 Documentation
+
+- [StpUtil API Reference](docs/StpUtil.md) - Complete guide to StpUtil utility class
+- [Permission Matching Rules](docs/PermissionMatching.md#english) - How permission checking works
+- [Examples](examples/) - Working examples for all supported frameworks
+
+## 🔧 Advanced Usage
+
+### Custom Storage
+
+Implement the `SaStorage` trait for your own storage backend:
 
 ```rust
-// 获取session
-let mut session = manager.get_session("user_123").await?;
+use sa_token_adapter::storage::SaStorage;
+use async_trait::async_trait;
 
-// 设置值
-session.set("nickname", "张三")?;
-session.set("age", 25)?;
+pub struct CustomStorage;
 
-// 获取值
-let nickname: String = session.get("nickname").unwrap();
-let age: i32 = session.get("age").unwrap();
-
-// 保存session
-manager.save_session(&session).await?;
+#[async_trait]
+impl SaStorage for CustomStorage {
+    async fn get(&self, key: &str) -> Option<String> {
+        // Your implementation
+    }
+    
+    async fn set(&self, key: &str, value: String, timeout: Option<i64>) {
+        // Your implementation
+    }
+    
+    // ... other methods
+}
 ```
 
-### 配置
+### Token Configuration
 
 ```rust
-use sa_token_core::{SaTokenConfig, TokenStyle};
-
-let config = SaTokenConfig::builder()
-    .token_name("Authorization")
-    .timeout(86400)  // 24小时
-    .token_style(TokenStyle::Uuid)
-    .token_prefix("Bearer")
-    .jwt_secret_key("your-secret-key")
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .token_name("X-Token")           // Custom token name
+    .timeout(7200)                    // Token timeout (seconds)
+    .active_timeout(1800)             // Activity timeout (seconds)
     .build();
 ```
 
-### 存储适配
+## 🤝 Contributing
 
-```rust
-// 内存存储（开发环境）
-let storage = Arc::new(MemoryStorage::new());
+Contributions are welcome! Please feel free to submit issues and pull requests.
 
-// Redis存储（生产环境）
-let storage = Arc::new(
-    RedisStorage::new("redis://127.0.0.1:6379", "sa-token:").await?
-);
-```
+## 📄 License
 
-## 🔧 扩展开发
+This project is licensed under either of:
 
-### 实现自定义存储
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT License ([LICENSE-MIT](LICENSE-MIT))
 
-```rust
-use async_trait::async_trait;
-use sa_token_adapter::storage::{SaStorage, StorageResult};
+at your option.
 
-pub struct MyStorage;
+## 👨‍💻 Author
 
-#[async_trait]
-impl SaStorage for MyStorage {
-    async fn get(&self, key: &str) -> StorageResult<Option<String>> {
-        // 实现获取逻辑
-    }
-    
-    async fn set(&self, key: &str, value: &str, ttl: Option<Duration>) -> StorageResult<()> {
-        // 实现设置逻辑
-    }
-    
-    // 实现其他必需方法...
-}
-```
+**金书记** (jinshuji@example.com)
 
-### 为新框架添加支持
+## 🙏 Acknowledgments
 
-1. 创建新的插件crate
-2. 实现`SaRequest`和`SaResponse` trait
-3. 实现框架特定的中间件/拦截器
-4. 提供文档和示例
-
-## 🎯 路线图
-
-- [x] 核心Token管理功能
-- [x] Session管理
-- [x] 内存存储实现
-- [x] Redis存储实现
-- [x] Axum框架集成
-- [x] Actix-web框架集成
-- [ ] 数据库存储实现
-- [ ] 权限验证系统完整实现
-- [ ] 过程宏完整实现
-- [ ] Rocket框架集成
-- [ ] Warp框架集成
-- [ ] Poem框架集成
-- [ ] JWT支持
-- [ ] SSO单点登录
-- [ ] OAuth2集成
-- [ ] 完整文档和示例
-
-## 🤝 贡献
-
-欢迎贡献代码、报告问题或提出建议！
-
-1. Fork本仓库
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的改动 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启一个Pull Request
-
-## 📄 许可证
-
-本项目采用 MIT 或 Apache-2.0 双重许可。
-
-## 🙏 致谢
-
-- 灵感来自 [sa-token](https://github.com/dromara/sa-token) (Java)
-- 感谢Rust社区的所有贡献者
-
-## 📮 联系方式
-
-- Issue: [GitHub Issues](https://github.com/your-username/sa-token-rust/issues)
-- 讨论: [GitHub Discussions](https://github.com/your-username/sa-token-rust/discussions)
-
----
-
-**注意**: 本项目目前处于早期开发阶段，API可能会发生变化。不建议在生产环境中使用。
+This project is inspired by [sa-token](https://github.com/dromara/sa-token) Java framework.
 

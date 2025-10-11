@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! 认证相关代码
 
 use axum::{
@@ -96,7 +98,7 @@ impl IntoResponse for ApiError {
         let body = Json(serde_json::json!({
             "code": code,
             "message": message,
-            "data": null::<()>,
+            "data": serde_json::Value::Null,
         }));
         
         (status, body).into_response()
@@ -125,9 +127,9 @@ pub async fn login(
         .await
         .map_err(|e| ApiError::InternalError(format!("登录失败: {}", e)))?;
     
-    // 获取用户信息
-    let permissions = state.permission_service.get_user_permissions(user_id).await;
-    let roles = state.permission_service.get_user_roles(user_id).await;
+    // 获取用户权限和角色（使用 StpUtil）
+    let permissions = sa_token_core::StpUtil::get_permissions(user_id).await;
+    let roles = sa_token_core::StpUtil::get_roles(user_id).await;
     
     tracing::info!(
         "✅ 用户 {} 登录成功，权限: {:?}, 角色: {:?}", 
@@ -153,4 +155,3 @@ pub async fn login(
     
     Ok(Json(ApiResponse::success(response)))
 }
-

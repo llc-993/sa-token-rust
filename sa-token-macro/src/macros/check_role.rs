@@ -1,6 +1,9 @@
+// Author: 金书记
+//
 //! 角色检查宏
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{parse_macro_input, ItemFn, LitStr};
 
@@ -34,7 +37,7 @@ pub fn sa_check_role_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let fn_generics = &input.sig.generics;
     let role_value = role.value();
     
-    let expanded = quote! {
+    let expanded: TokenStream2 = quote! {
         #(#fn_attrs)*
         #[doc(hidden)]
         #[cfg_attr(feature = "sa-token-metadata", sa_token_check = "role")]
@@ -47,6 +50,5 @@ pub fn sa_check_role_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
     
-    TokenStream::from(expanded)
+    expanded.into()
 }
-

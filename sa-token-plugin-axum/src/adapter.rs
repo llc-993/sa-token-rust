@@ -1,7 +1,9 @@
+// Author: 金书记
+//
 //! Axum请求/响应适配器
 
 use std::collections::HashMap;
-use http::{Request, Response, HeaderMap};
+use http::{Request, Response};
 use sa_token_adapter::context::{SaRequest, SaResponse, CookieOptions};
 use serde::Serialize;
 
@@ -29,9 +31,11 @@ impl<'a, T> SaRequest for AxumRequestAdapter<'a, T> {
             .and_then(|cookies| parse_cookies(cookies).get(name).cloned())
     }
     
-    fn get_param(&self, _name: &str) -> Option<String> {
-        // 需要从query string中解析
-        None
+    fn get_param(&self, name: &str) -> Option<String> {
+        self.request
+            .uri()
+            .query()
+            .and_then(|query| parse_query_string(query).get(name).cloned())
     }
     
     fn get_path(&self) -> String {
@@ -99,6 +103,7 @@ impl<T> SaResponse for AxumResponseAdapter<T> {
     }
 }
 
+/// 解析 Cookie 字符串
 fn parse_cookies(cookie_header: &str) -> HashMap<String, String> {
     let mut cookies = HashMap::new();
     for pair in cookie_header.split(';') {
@@ -110,3 +115,17 @@ fn parse_cookies(cookie_header: &str) -> HashMap<String, String> {
     cookies
 }
 
+/// 解析查询字符串
+fn parse_query_string(query: &str) -> HashMap<String, String> {
+    let mut params = HashMap::new();
+    for pair in query.split('&') {
+        let parts: Vec<&str> = pair.splitn(2, '=').collect();
+        if parts.len() == 2 {
+            params.insert(
+                urlencoding::decode(parts[0]).unwrap_or_default().to_string(),
+                urlencoding::decode(parts[1]).unwrap_or_default().to_string(),
+            );
+        }
+    }
+    params
+}

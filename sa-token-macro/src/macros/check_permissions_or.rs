@@ -1,8 +1,11 @@
+// Author: 金书记
+//
 //! 多权限检查宏（OR逻辑）
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, LitStr, Token};
+use syn::{parse_macro_input, ItemFn, LitStr, Token, parse::Parser};
 
 /// 同时检查多个权限（OR逻辑）
 /// 
@@ -34,7 +37,7 @@ pub fn sa_check_permissions_or_impl(attr: TokenStream, item: TokenStream) -> Tok
     let fn_asyncness = &input.sig.asyncness;
     let fn_generics = &input.sig.generics;
     
-    let expanded = quote! {
+    let expanded: TokenStream2 = quote! {
         #(#fn_attrs)*
         #[doc(hidden)]
         #[cfg_attr(feature = "sa-token-metadata", sa_token_check = "permissions_or")]
@@ -44,6 +47,5 @@ pub fn sa_check_permissions_or_impl(attr: TokenStream, item: TokenStream) -> Tok
         }
     };
     
-    TokenStream::from(expanded)
+    expanded.into()
 }
-

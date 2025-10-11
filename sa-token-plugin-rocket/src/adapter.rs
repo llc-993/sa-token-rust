@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Rocket 请求/响应适配器
 
 use rocket::{Request, Response};
@@ -124,4 +126,3 @@ fn parse_query_string(query: &str) -> HashMap<String, String> {
     }
     params
 }
-

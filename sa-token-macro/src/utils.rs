@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! 宏工具函数
 
 use syn::{ItemFn, punctuated::Punctuated, Token, LitStr};
@@ -5,12 +7,14 @@ use quote::quote;
 use proc_macro2::TokenStream;
 
 /// 解析逗号分隔的字符串列表
+#[allow(dead_code)]
 pub fn parse_string_list(input: syn::parse::ParseStream) -> syn::Result<Vec<String>> {
     let vars = Punctuated::<LitStr, Token![,]>::parse_terminated(input)?;
     Ok(vars.into_iter().map(|lit| lit.value()).collect())
 }
 
 /// 为函数添加认证检查的包装代码
+#[allow(dead_code)]
 pub fn wrap_fn_with_auth_check(
     input: &ItemFn,
     check_type: &str,
@@ -31,16 +35,16 @@ pub fn wrap_fn_with_auth_check(
             // 这里会在中间件中实际执行，宏只是添加标记
         },
         "permission" => {
-            let perm = check_value.unwrap_or("");
+            let _perm = check_value.unwrap_or("");
             quote! {
-                // 检查权限: #perm
+                // 检查权限
                 // 实际验证逻辑在中间件中执行
             }
         },
         "role" => {
-            let role_name = check_value.unwrap_or("");
+            let _role_name = check_value.unwrap_or("");
             quote! {
-                // 检查角色: #role_name
+                // 检查角色
                 // 实际验证逻辑在中间件中执行
             }
         },
@@ -58,6 +62,7 @@ pub fn wrap_fn_with_auth_check(
 }
 
 /// 生成认证元数据属性
+#[allow(dead_code)]
 pub fn generate_auth_metadata(check_type: &str, value: Option<&str>) -> TokenStream {
     let metadata = if let Some(v) = value {
         format!("{}:{}", check_type, v)
@@ -70,4 +75,3 @@ pub fn generate_auth_metadata(check_type: &str, value: Option<&str>) -> TokenStr
         #[cfg_attr(feature = "sa-token-metadata", sa_token_auth_check = #metadata)]
     }
 }
-

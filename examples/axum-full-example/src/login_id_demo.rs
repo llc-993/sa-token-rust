@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! LoginId 多类型支持演示
 
 use sa_token_core::StpUtil;
@@ -11,7 +13,7 @@ pub async fn demo_login_id_types() -> anyhow::Result<()> {
     tracing::info!("\n1️⃣ 字符串类型 ID");
     
     let string_id = String::from("user_string");
-    let token1 = StpUtil::login(&string_id).await?;
+    let token1 = StpUtil::login(string_id.as_str()).await?;
     tracing::info!("✅ String 类型登录成功: ID={}, Token={}", string_id, token1.as_str());
     
     let str_id = "user_str";
@@ -40,7 +42,6 @@ pub async fn demo_login_id_types() -> anyhow::Result<()> {
     let u64_id: u64 = 10004_u64;
     let token6 = StpUtil::login(u64_id).await?;
     tracing::info!("✅ u64 类型登录成功: ID={}, Token={}", u64_id, token6.as_str());
-    
     // ==================== 3. 权限和角色管理 ====================
     tracing::info!("\n3️⃣ 权限和角色管理（使用数字 ID）");
     
@@ -126,4 +127,3 @@ pub async fn demo_login_id_types() -> anyhow::Result<()> {
     
     Ok(())
 }
-

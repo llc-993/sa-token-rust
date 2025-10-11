@@ -1,7 +1,8 @@
+// Author: 金书记
+//
 //! Warp Filter (中间件)
 
 use warp::{Filter, Rejection, http::HeaderMap};
-use std::sync::Arc;
 use crate::SaTokenState;
 use sa_token_core::token::TokenValue;
 
@@ -97,4 +98,3 @@ fn extract_bearer_token(token: &str) -> String {
 pub struct UnauthorizedError;
 
 impl warp::reject::Reject for UnauthorizedError {}
-

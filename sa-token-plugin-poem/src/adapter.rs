@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Poem 请求/响应适配器
 
 use std::collections::HashMap;
@@ -121,7 +123,7 @@ impl SaResponse for PoemResponseAdapter {
             cookie.push_str("; Secure");
         }
         if let Some(same_site) = options.same_site {
-            cookie.push_str(&format!("; SameSite={}", same_site));
+            cookie.push_str(&format!("; SameSite={:?}", same_site));
         }
         
         self.set_header("Set-Cookie", &cookie);
@@ -165,4 +167,3 @@ fn parse_query_string(query: &str) -> HashMap<String, String> {
     }
     params
 }
-

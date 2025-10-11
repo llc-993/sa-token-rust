@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! 存储适配器trait定义
 
 use async_trait::async_trait;
@@ -100,4 +102,3 @@ pub trait SaStorage: Send + Sync {
     /// 清空所有数据（谨慎使用）
     async fn clear(&self) -> StorageResult<()>;
 }
-

@@ -52,7 +52,7 @@ sa-token-rust/
 ### 3. **sa-token-macro**
 用于注解式认证的过程宏：
 - `#[sa_check_login]`: 要求登录
-- `#[sa_check_permission("user:list")]`: 检查权限
+- `#[sa_check_permission("user:list")]`: 检查权限 ([匹配规则](docs/PermissionMatching.md#中文))
 - `#[sa_check_role("admin")]`: 检查角色
 - `#[sa_check_permissions_and(...)]`: 检查多个权限（AND）
 - `#[sa_check_permissions_or(...)]`: 检查多个权限（OR）
@@ -90,16 +90,14 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    // 创建状态
+    // 创建状态（StpUtil 会自动初始化）
     let state = SaTokenState::builder()
         .storage(Arc::new(MemoryStorage::new()))
         .token_name("Authorization")
         .timeout(86400)  // 24 小时
         .build();
     
-    // 初始化 StpUtil（全局单例）
-    StpUtil::init_manager((*state.manager).clone());
-    
+    // StpUtil 已就绪，可以直接使用！
     // 你的应用代码...
 }
 ```
@@ -275,6 +273,7 @@ warp::serve(routes)
 ## 📖 文档
 
 - [StpUtil API 参考](docs/StpUtil_zh-CN.md) - StpUtil 工具类完整指南
+- [权限匹配规则](docs/PermissionMatching.md#中文) - 权限检查工作原理
 - [示例](examples/) - 所有支持框架的工作示例
 
 ## 🔧 高级用法
@@ -326,6 +325,10 @@ let state = SaTokenState::builder()
 - MIT License ([LICENSE-MIT](LICENSE-MIT))
 
 由你选择。
+
+## 👨‍💻 作者
+
+**金书记** (jinshuji@example.com)
 
 ## 🙏 致谢
 

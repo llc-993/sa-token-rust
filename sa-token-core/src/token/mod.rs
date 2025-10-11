@@ -1,8 +1,9 @@
+// Author: 金书记
+//
 //! Token 管理模块
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 pub mod generator;
 pub mod validator;
@@ -104,4 +105,3 @@ pub struct TokenSign {
     pub value: String,
     pub device: Option<String>,
 }
-

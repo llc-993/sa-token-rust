@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! 权限验证模块
 
 use async_trait::async_trait;
@@ -62,4 +64,3 @@ pub trait RoleChecker: Send + Sync {
     /// 获取用户的所有角色列表
     async fn get_roles(&self, login_id: &str) -> SaTokenResult<Vec<String>>;
 }
-

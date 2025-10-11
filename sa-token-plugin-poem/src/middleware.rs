@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! Poem 中间件实现
 
 use std::sync::Arc;
@@ -6,6 +8,7 @@ use poem::{
     http::StatusCode,
 };
 use sa_token_core::SaTokenManager;
+use sa_token_adapter::context::SaRequest;
 use crate::adapter::PoemRequestAdapter;
 
 /// sa-token 中间件
@@ -43,6 +46,7 @@ impl<E: Endpoint> Endpoint for SaTokenMiddlewareImpl<E> {
     async fn call(&self, mut req: Request) -> PoemResult<Self::Output> {
         // 从请求中提取 token
         let adapter = PoemRequestAdapter::new(&req);
+        // 从配置中获取 token_name
         let token_name = &self.manager.config.token_name;
         
         // 按优先级查找 token：Header > Cookie > Query
@@ -126,4 +130,3 @@ impl<E: Endpoint> Endpoint for SaCheckLoginMiddlewareImpl<E> {
             .body("Unauthorized: Please login first"))
     }
 }
-

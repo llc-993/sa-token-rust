@@ -1,9 +1,10 @@
+// Author: 金书记
+//
 //! Poem Extractor 实现
 
-use std::sync::Arc;
 use poem::{Request, Result, FromRequest, RequestBody};
 use poem::http::StatusCode;
-use sa_token_core::{SaTokenManager, token::TokenValue};
+use sa_token_core::token::TokenValue;
 
 /// Token 提取器
 /// 
@@ -124,4 +125,3 @@ impl<'a> FromRequest<'a> for LoginIdExtractor {
         Ok(Self(login_id))
     }
 }
-

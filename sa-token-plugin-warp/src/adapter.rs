@@ -1,6 +1,8 @@
+// Author: 金书记
+//
 //! Warp 请求/响应适配器
 
-use warp::http::{HeaderMap, HeaderValue, Response, StatusCode};
+use warp::http::{HeaderMap, Response, StatusCode};
 use warp::hyper::body::Bytes;
 use sa_token_adapter::context::{SaRequest, SaResponse, CookieOptions};
 use serde::Serialize;
@@ -168,4 +170,3 @@ fn parse_cookie(cookie_str: &str, name: &str) -> Option<String> {
     }
     None
 }
-

@@ -17,23 +17,26 @@
 
 ## Initialization
 
-Before using `StpUtil`, you must initialize it with a `SaTokenManager` instance:
+`StpUtil` is automatically initialized when you create `SaTokenState` using any web framework plugin:
 
 ```rust
-use sa_token_core::{StpUtil, SaTokenManager};
+use sa_token_core::StpUtil;
+use sa_token_plugin_axum::SaTokenState;  // or any other framework plugin
 use sa_token_storage_memory::MemoryStorage;
 use std::sync::Arc;
 
-// Create manager
-let storage = Arc::new(MemoryStorage::new());
-let config = SaTokenConfig::default();
-let manager = SaTokenManager::new(storage, config);
+// StpUtil is automatically initialized when building state
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .token_name("Authorization")
+    .timeout(86400)
+    .build();
 
-// Initialize StpUtil (only once, at application startup)
-StpUtil::init_manager(manager);
+// StpUtil is ready to use!
+StpUtil::login("user_id").await?;
 ```
 
-**Note**: `init_manager` should only be called once during application initialization. Calling it multiple times will panic.
+**Note**: The initialization happens automatically in `SaTokenState::builder().build()`, so you don't need to call any initialization method manually. This works for all supported web frameworks (Axum, Actix-web, Poem, Rocket, Warp).
 
 ## Login Operations
 
@@ -441,7 +444,7 @@ let token = StpUtil::login("user_10001").await?;
 
 ## Best Practices
 
-1. **Initialize Once**: Call `StpUtil::init_manager()` only once at application startup.
+1. **Automatic Initialization**: `StpUtil` is automatically initialized when you build `SaTokenState`, no manual initialization needed.
 
 2. **Error Handling**: Always handle errors from `StpUtil` methods appropriately.
 

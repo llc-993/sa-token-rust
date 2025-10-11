@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! StpUtil 使用示例
 //! 
 //! 演示如何使用 StpUtil 工具类进行认证和权限操作
@@ -116,4 +118,3 @@ async fn main() -> antml:Result<(), Box<dyn std::error::Error>> {
     
     Ok(())
 }
-

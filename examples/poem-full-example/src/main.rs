@@ -1,3 +1,5 @@
+// Author: 金书记
+//
 //! sa-token-rust Poem 完整示例
 //! 
 //! 展示如何：
@@ -9,7 +11,7 @@
 use std::sync::Arc;
 use poem::{
     Route, Server, listener::TcpListener, 
-    handler, web::Json, web::Data,
+    handler, web::Json, web::Data, EndpointExt,
     Result as PoemResult, Response, IntoResponse,
     http::StatusCode,
 };
@@ -18,7 +20,7 @@ use sa_token_core::{SaTokenConfig, StpUtil};
 use sa_token_storage_memory::MemoryStorage;
 use sa_token_plugin_poem::{
     SaTokenState, SaTokenMiddleware, SaTokenExtractor, 
-    OptionalSaTokenExtractor, LoginIdExtractor,
+    LoginIdExtractor,
 };
 use sa_token_core::config::TokenStyle;
 
@@ -81,8 +83,7 @@ async fn main() -> Result<(), std::io::Error> {
         .token_style(TokenStyle::Random64)
         .build();
     
-    // 2. 初始化全局 StpUtil
-    StpUtil::init_manager((*sa_token_state.manager).clone());
+    // StpUtil 已在 build() 时自动初始化
     
     // 3. 初始化测试用户的权限和角色
     init_test_permissions().await;
@@ -90,8 +91,8 @@ async fn main() -> Result<(), std::io::Error> {
     // 4. 创建路由
     let app = Route::new()
         // 公开接口（不需要登录）
-        .at("/", handler(index))
-        .at("/api/health", handler(health_check))
+        .at("/", poem::get(index))
+        .at("/api/health", poem::get(health_check))
         .at("/api/auth/login", poem::post(login))
         
         // 需要登录的接口
@@ -313,4 +314,3 @@ async fn admin_config(
     
     Ok(Json(ApiResponse::success("Admin configuration data".to_string())))
 }
-

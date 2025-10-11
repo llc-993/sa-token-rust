@@ -1,7 +1,11 @@
+// Author: 金书记
+//
 //! 配置模块
 
 use std::time::Duration;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use sa_token_adapter::storage::SaStorage;
 
 /// sa-token 配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +17,21 @@ pub struct SaTokenConfig {
     pub timeout: i64,
     
     /// Token 最低活跃频率（秒），-1 表示不限制
+    /// 
+    /// 配合 auto_renew 使用时，表示自动续签的时长
     pub active_timeout: i64,
+    
+    /// 是否开启自动续签（默认 false）
+    /// 
+    /// 如果设置为 true，在以下场景会自动续签 token：
+    /// - 调用 get_token_info() 时
+    /// - 中间件验证 token 时
+    /// - 调用无参数的 StpUtil 方法时
+    /// 
+    /// 续签时长由 active_timeout 决定：
+    /// - 如果 active_timeout > 0，则续签 active_timeout 秒
+    /// - 如果 active_timeout <= 0，则续签 timeout 秒
+    pub auto_renew: bool,
     
     /// 是否允许同一账号并发登录
     pub is_concurrent: bool,
@@ -49,6 +67,7 @@ impl Default for SaTokenConfig {
             token_name: "sa-token".to_string(),
             timeout: 2592000, // 30天
             active_timeout: -1,
+            auto_renew: false, // 默认不开启自动续签
             is_concurrent: true,
             is_share: true,
             token_style: TokenStyle::Uuid,
@@ -92,9 +111,18 @@ pub enum TokenStyle {
 }
 
 /// 配置构建器
-#[derive(Debug, Default)]
 pub struct SaTokenConfigBuilder {
     config: SaTokenConfig,
+    storage: Option<Arc<dyn SaStorage>>,
+}
+
+impl Default for SaTokenConfigBuilder {
+    fn default() -> Self {
+        Self {
+            config: SaTokenConfig::default(),
+            storage: None,
+        }
+    }
 }
 
 impl SaTokenConfigBuilder {
@@ -110,6 +138,12 @@ impl SaTokenConfigBuilder {
     
     pub fn active_timeout(mut self, timeout: i64) -> Self {
         self.config.active_timeout = timeout;
+        self
+    }
+    
+    /// 设置是否开启自动续签
+    pub fn auto_renew(mut self, enabled: bool) -> Self {
+        self.config.auto_renew = enabled;
         self
     }
     
@@ -138,8 +172,35 @@ impl SaTokenConfigBuilder {
         self
     }
     
-    pub fn build(self) -> SaTokenConfig {
+    /// 设置存储方式
+    pub fn storage(mut self, storage: Arc<dyn SaStorage>) -> Self {
+        self.storage = Some(storage);
+        self
+    }
+    
+    /// 构建 SaTokenManager（需要先设置 storage）
+    /// 
+    /// # Panics
+    /// 如果未设置 storage，会 panic
+    /// 
+    /// # 示例
+    /// ```rust,ignore
+    /// use std::sync::Arc;
+    /// use sa_token_core::SaTokenConfig;
+    /// use sa_token_storage_memory::MemoryStorage;
+    /// 
+    /// let manager = SaTokenConfig::builder()
+    ///     .storage(Arc::new(MemoryStorage::new()))
+    ///     .timeout(7200)
+    ///     .build();
+    /// ```
+    pub fn build(self) -> crate::SaTokenManager {
+        let storage = self.storage.expect("Storage must be set before building SaTokenManager. Use .storage() method.");
+        crate::SaTokenManager::new(storage, self.config)
+    }
+    
+    /// 仅构建配置（不创建 Manager）
+    pub fn build_config(self) -> SaTokenConfig {
         self.config
     }
 }
-
