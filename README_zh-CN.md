@@ -328,7 +328,7 @@ let state = SaTokenState::builder()
 
 ## 👨‍💻 作者
 
-**金书记** (jinshuji@example.com)
+**金书记**
 
 ## 🙏 致谢
 

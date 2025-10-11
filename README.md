@@ -328,7 +328,7 @@ at your option.
 
 ## 👨‍💻 Author
 
-**金书记** (jinshuji@example.com)
+**金书记**
 
 ## 🙏 Acknowledgments
 
