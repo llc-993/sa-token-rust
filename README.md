@@ -82,6 +82,8 @@ axum = "0.7"
 
 ### 2. Initialize sa-token
 
+#### Option A: Using Memory Storage (Development)
+
 ```rust
 use sa_token_core::StpUtil;
 use sa_token_plugin_axum::SaTokenState;
@@ -99,6 +101,87 @@ async fn main() {
     
     // StpUtil is ready to use!
     // Your application code...
+}
+```
+
+#### Option B: Using Redis Storage (Production)
+
+**Method 1: Redis URL (Recommended for simple scenarios)**
+
+```rust
+use sa_token_storage_redis::RedisStorage;
+use sa_token_plugin_axum::SaTokenState;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to Redis with password
+    let storage = RedisStorage::new(
+        "redis://:Aq23-hjPwFB3mBDNFp3W1@localhost:6379/0",
+        "sa-token:"
+    ).await?;
+    
+    let state = SaTokenState::builder()
+        .storage(Arc::new(storage))
+        .timeout(86400)
+        .build();
+    
+    Ok(())
+}
+```
+
+**Method 2: RedisConfig Structure (Recommended for configuration files)**
+
+```rust
+use sa_token_storage_redis::{RedisStorage, RedisConfig};
+use sa_token_plugin_axum::SaTokenState;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = RedisConfig {
+        host: "localhost".to_string(),
+        port: 6379,
+        password: Some("Aq23-hjPwFB3mBDNFp3W1".to_string()),
+        database: 0,
+        pool_size: 10,
+    };
+    
+    let storage = RedisStorage::from_config(config, "sa-token:").await?;
+    
+    let state = SaTokenState::builder()
+        .storage(Arc::new(storage))
+        .timeout(86400)
+        .build();
+    
+    Ok(())
+}
+```
+
+**Method 3: Builder Pattern (Most flexible)**
+
+```rust
+use sa_token_storage_redis::RedisStorage;
+use sa_token_plugin_axum::SaTokenState;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let storage = RedisStorage::builder()
+        .host("localhost")
+        .port(6379)
+        .password("Aq23-hjPwFB3mBDNFp3W1")
+        .database(0)
+        .key_prefix("sa-token:")
+        .build()
+        .await?;
+    
+    let state = SaTokenState::builder()
+        .storage(Arc::new(storage))
+        .timeout(86400)
+        .build();
+    
+    Ok(())
 }
 ```
 

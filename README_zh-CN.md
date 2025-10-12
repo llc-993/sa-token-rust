@@ -82,6 +82,8 @@ axum = "0.7"
 
 ### 2. 初始化 sa-token
 
+#### 方式 A: 使用内存存储（开发环境）
+
 ```rust
 use sa_token_core::StpUtil;
 use sa_token_plugin_axum::SaTokenState;
@@ -99,6 +101,87 @@ async fn main() {
     
     // StpUtil 已就绪，可以直接使用！
     // 你的应用代码...
+}
+```
+
+#### 方式 B: 使用 Redis 存储（生产环境）
+
+**方法 1: Redis URL（推荐简单场景）**
+
+```rust
+use sa_token_storage_redis::RedisStorage;
+use sa_token_plugin_axum::SaTokenState;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 连接 Redis（带密码）
+    let storage = RedisStorage::new(
+        "redis://:Aq23-hjPwFB3mBDNFp3W1@localhost:6379/0",
+        "sa-token:"
+    ).await?;
+    
+    let state = SaTokenState::builder()
+        .storage(Arc::new(storage))
+        .timeout(86400)
+        .build();
+    
+    Ok(())
+}
+```
+
+**方法 2: RedisConfig 结构体（推荐配置文件读取）**
+
+```rust
+use sa_token_storage_redis::{RedisStorage, RedisConfig};
+use sa_token_plugin_axum::SaTokenState;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = RedisConfig {
+        host: "localhost".to_string(),
+        port: 6379,
+        password: Some("Aq23-hjPwFB3mBDNFp3W1".to_string()),
+        database: 0,
+        pool_size: 10,
+    };
+    
+    let storage = RedisStorage::from_config(config, "sa-token:").await?;
+    
+    let state = SaTokenState::builder()
+        .storage(Arc::new(storage))
+        .timeout(86400)
+        .build();
+    
+    Ok(())
+}
+```
+
+**方法 3: Builder 构建器（最灵活）**
+
+```rust
+use sa_token_storage_redis::RedisStorage;
+use sa_token_plugin_axum::SaTokenState;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let storage = RedisStorage::builder()
+        .host("localhost")
+        .port(6379)
+        .password("Aq23-hjPwFB3mBDNFp3W1")
+        .database(0)
+        .key_prefix("sa-token:")
+        .build()
+        .await?;
+    
+    let state = SaTokenState::builder()
+        .storage(Arc::new(storage))
+        .timeout(86400)
+        .build();
+    
+    Ok(())
 }
 ```
 

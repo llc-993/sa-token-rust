@@ -21,3 +21,6 @@ Thumbs.db
 
 # Documentation
 /book/
+examples/axum-full-example/target
+examples/poem-full-example/target
+target

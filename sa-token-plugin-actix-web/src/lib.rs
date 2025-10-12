@@ -14,7 +14,7 @@ pub use adapter::{ActixRequestAdapter, ActixResponseAdapter};
 
 use std::sync::Arc;
 use actix_web::web::Data;
-use sa_token_core::{SaTokenManager, SaTokenConfig};
+use sa_token_core::SaTokenManager;
 use sa_token_adapter::storage::SaStorage;
 
 /// Actix-web应用数据
@@ -34,59 +34,70 @@ impl SaTokenState {
 }
 
 /// 状态构建器
+#[derive(Default)]
 pub struct SaTokenStateBuilder {
-    storage: Option<Arc<dyn SaStorage>>,
-    token_name: Option<String>,
-    timeout: Option<i64>,
-    active_timeout: Option<i64>,
+    config_builder: sa_token_core::config::SaTokenConfigBuilder,
 }
 
 impl SaTokenStateBuilder {
     pub fn new() -> Self {
-        Self {
-            storage: None,
-            token_name: None,
-            timeout: None,
-            active_timeout: None,
-        }
+        Self::default()
     }
     
     pub fn storage(mut self, storage: Arc<dyn SaStorage>) -> Self {
-        self.storage = Some(storage);
+        self.config_builder = self.config_builder.storage(storage);
         self
     }
     
     pub fn token_name(mut self, name: impl Into<String>) -> Self {
-        self.token_name = Some(name.into());
+        self.config_builder = self.config_builder.token_name(name);
         self
     }
     
     pub fn timeout(mut self, timeout: i64) -> Self {
-        self.timeout = Some(timeout);
+        self.config_builder = self.config_builder.timeout(timeout);
         self
     }
     
     pub fn active_timeout(mut self, timeout: i64) -> Self {
-        self.active_timeout = Some(timeout);
+        self.config_builder = self.config_builder.active_timeout(timeout);
+        self
+    }
+    
+    /// 设置是否开启自动续签
+    pub fn auto_renew(mut self, enabled: bool) -> Self {
+        self.config_builder = self.config_builder.auto_renew(enabled);
+        self
+    }
+    
+    pub fn is_concurrent(mut self, concurrent: bool) -> Self {
+        self.config_builder = self.config_builder.is_concurrent(concurrent);
+        self
+    }
+    
+    pub fn is_share(mut self, share: bool) -> Self {
+        self.config_builder = self.config_builder.is_share(share);
+        self
+    }
+    
+    /// 设置 Token 风格
+    pub fn token_style(mut self, style: sa_token_core::config::TokenStyle) -> Self {
+        self.config_builder = self.config_builder.token_style(style);
+        self
+    }
+    
+    pub fn token_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.config_builder = self.config_builder.token_prefix(prefix);
+        self
+    }
+    
+    pub fn jwt_secret_key(mut self, key: impl Into<String>) -> Self {
+        self.config_builder = self.config_builder.jwt_secret_key(key);
         self
     }
     
     pub fn build(self) -> Data<SaTokenState> {
-        let storage = self.storage
-            .expect("Storage is required");
-        
-        let mut config = SaTokenConfig::default();
-        if let Some(name) = self.token_name {
-            config.token_name = name;
-        }
-        if let Some(timeout) = self.timeout {
-            config.timeout = timeout;
-        }
-        if let Some(active_timeout) = self.active_timeout {
-            config.active_timeout = active_timeout;
-        }
-        
-        let manager = SaTokenManager::new(storage, config);
+        let manager = self.config_builder.build();
         
         // 自动初始化全局 StpUtil
         sa_token_core::StpUtil::init_manager(manager.clone());
@@ -97,8 +108,3 @@ impl SaTokenStateBuilder {
     }
 }
 
-impl Default for SaTokenStateBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}

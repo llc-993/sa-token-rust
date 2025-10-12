@@ -128,6 +128,12 @@ impl SaTokenStateBuilder {
         self
     }
     
+    /// 设置是否开启自动续签
+    pub fn auto_renew(mut self, enabled: bool) -> Self {
+        self.config_builder = self.config_builder.auto_renew(enabled);
+        self
+    }
+    
     pub fn is_concurrent(mut self, concurrent: bool) -> Self {
         self.config_builder = self.config_builder.is_concurrent(concurrent);
         self
