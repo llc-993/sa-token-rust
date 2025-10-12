@@ -12,8 +12,8 @@ categories.workspace = true
 description = "Axum framework integration for sa-token-rust"
 
 [dependencies]
-sa-token-core = { version = "0.1.0", path = "../sa-token-core" }
-sa-token-adapter = { version = "0.1.0", path = "../sa-token-adapter" }
+sa-token-core = { version = "0.1.1", path = "../sa-token-core" }
+sa-token-adapter = { version = "0.1.1", path = "../sa-token-adapter" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }

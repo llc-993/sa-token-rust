@@ -12,12 +12,12 @@ categories.workspace = true
 description = "Poem framework integration for sa-token-rust"
 
 [dependencies]
-sa-token-core = { version = "0.1.0", path = "../sa-token-core" }
-sa-token-adapter = { version = "0.1.0", path = "../sa-token-adapter" }
+sa-token-core = { version = "0.1.1", path = "../sa-token-core" }
+sa-token-adapter = { version = "0.1.1", path = "../sa-token-adapter" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-poem = "3.0"
+poem = "3.1.11"
 urlencoding = "2.1"
