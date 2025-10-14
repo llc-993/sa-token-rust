@@ -17,6 +17,9 @@
 - 🔑 **JWT 支持**: 完整的 JWT (JSON Web Token) 实现，支持多种算法
 - 🔒 **安全特性**: Nonce 防重放攻击、Refresh Token 刷新机制
 - 🌐 **OAuth2 支持**: 完整的 OAuth2 授权码模式实现
+- 🌐 **WebSocket 认证**: 安全的 WebSocket 连接认证，支持多种 Token 来源
+- 👥 **在线用户管理**: 实时在线状态跟踪和消息推送
+- 🔄 **分布式 Session**: 跨服务 Session 共享，适用于微服务架构
 
 ## 📦 架构
 
@@ -35,6 +38,9 @@ sa-token-rust/
 │   ├── nonce.rs                # Nonce 管理器（防重放攻击）
 │   ├── refresh.rs              # Refresh Token 管理器
 │   ├── oauth2.rs               # OAuth2 授权码模式
+│   ├── ws.rs                   # WebSocket 认证
+│   ├── online.rs               # 在线用户管理和实时推送
+│   ├── distributed.rs          # 分布式 Session 管理
 │   ├── manager.rs              # SaTokenManager（核心管理器）
 │   ├── config.rs               # 配置和构建器
 │   └── util.rs                 # StpUtil（工具类）
@@ -53,11 +59,17 @@ sa-token-rust/
 │   ├── jwt_example.rs                 # JWT 完整演示
 │   ├── token_styles_example.rs        # Token 风格演示
 │   ├── security_features_example.rs   # Nonce & Refresh Token 演示
-│   └── oauth2_example.rs              # OAuth2 授权流程演示
+│   ├── oauth2_example.rs              # OAuth2 授权流程演示
+│   ├── websocket_online_example.rs    # WebSocket 认证 & 在线用户演示
+│   └── distributed_session_example.rs # 分布式 Session 演示
 └── docs/                       # 文档
     ├── JWT_GUIDE.md / JWT_GUIDE_zh-CN.md
     ├── OAUTH2_GUIDE.md / OAUTH2_GUIDE_zh-CN.md
     ├── EVENT_LISTENER.md / EVENT_LISTENER_zh-CN.md
+    ├── WEBSOCKET_AUTH.md           # WebSocket 认证（7 种语言）
+    ├── ONLINE_USER_MANAGEMENT.md   # 在线用户管理（7 种语言）
+    ├── DISTRIBUTED_SESSION.md      # 分布式 Session（7 种语言）
+    ├── ERROR_REFERENCE.md          # 错误参考（7 种语言）
     └── StpUtil.md / StpUtil_zh-CN.md
 ```
 
@@ -75,6 +87,9 @@ sa-token-rust/
 - JWT 支持，多种算法 ([JWT 指南](docs/JWT_GUIDE_zh-CN.md))
 - 安全特性：Nonce 防重放攻击、Refresh Token 刷新机制
 - OAuth2 授权码模式 ([OAuth2 指南](docs/OAUTH2_GUIDE_zh-CN.md))
+- WebSocket 认证 ([WebSocket 指南](docs/WEBSOCKET_AUTH.md))
+- 在线用户管理和实时推送 ([在线用户指南](docs/ONLINE_USER_MANAGEMENT.md))
+- 微服务分布式 Session ([分布式 Session 指南](docs/DISTRIBUTED_SESSION.md))
 
 ### 2. **sa-token-adapter**
 框架集成的抽象层：
@@ -601,10 +616,47 @@ warp::serve(routes)
 
 ## 📖 文档
 
+### 核心文档
 - [StpUtil API 参考](docs/StpUtil_zh-CN.md) - StpUtil 工具类完整指南
-- [事件监听系统](docs/EVENT_LISTENER.md) - 监听登录、登出等认证事件
 - [权限匹配规则](docs/PermissionMatching.md#中文) - 权限检查工作原理
-- [示例](examples/) - 所有支持框架的工作示例
+- [架构概览](docs/ARCHITECTURE.md) - 系统架构和设计
+- [快速开始指南](docs/QUICK_START.md) - 快速入门
+
+### 功能指南
+- **认证与授权**
+  - [事件监听指南](docs/EVENT_LISTENER_zh-CN.md) - 监听认证事件（登录、登出、踢出）
+  - [JWT 指南](docs/JWT_GUIDE_zh-CN.md) - JWT 实现，支持 8 种算法
+  - [OAuth2 指南](docs/OAUTH2_GUIDE_zh-CN.md) - OAuth2 授权码模式
+
+- **实时通信与 WebSocket**
+  - [WebSocket 认证](docs/WEBSOCKET_AUTH.md) - 安全的 WebSocket 连接认证（7 种语言）
+  - [在线用户管理](docs/ONLINE_USER_MANAGEMENT.md) - 实时状态跟踪和推送（7 种语言）
+
+- **分布式系统**
+  - [分布式 Session](docs/DISTRIBUTED_SESSION.md) - 跨服务 Session 共享（7 种语言）
+
+- **错误处理**
+  - [错误参考](docs/ERROR_REFERENCE.md) - 完整的错误类型文档（7 种语言）
+
+### 示例代码
+- [示例目录](examples/) - 所有功能的完整示例
+  - `event_listener_example.rs` - 事件监听（包含 WebSocket 支持）
+  - `jwt_example.rs` - JWT 生成和验证
+  - `token_styles_example.rs` - 7 种 Token 生成风格
+  - `security_features_example.rs` - Nonce 和 Refresh Token
+  - `oauth2_example.rs` - OAuth2 授权流程
+  - `websocket_online_example.rs` - WebSocket 认证和在线用户管理
+  - `distributed_session_example.rs` - 分布式 Session 管理
+
+### 多语言支持
+大部分文档支持 7 种语言：
+- 🇬🇧 English（英语）
+- 🇨🇳 中文
+- 🇹🇭 ภาษาไทย（泰语）
+- 🇻🇳 Tiếng Việt（越南语）
+- 🇰🇭 ភាសាខ្មែរ（高棉语）
+- 🇲🇾 Bahasa Melayu（马来语）
+- 🇲🇲 မြန်မာဘာသာ（缅甸语）
 
 ## 🔧 高级用法
 

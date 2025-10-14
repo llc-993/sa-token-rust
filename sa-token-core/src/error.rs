@@ -22,9 +22,15 @@ pub enum SaTokenError {
     #[error("User not logged in")]
     NotLogin,
     
+    #[error("Token is inactive")]
+    TokenInactive,
+    
     // ============ Authorization Errors | 授权错误 ============
+    #[error("Permission denied")]
+    PermissionDenied,
+    
     #[error("Permission denied: missing permission '{0}'")]
-    PermissionDenied(String),
+    PermissionDeniedDetail(String),
     
     #[error("Role denied: missing role '{0}'")]
     RoleDenied(String),

@@ -2215,6 +2215,7 @@ name = "sa-token-rust"
 version = "0.1.3"
 dependencies = [
  "async-trait",
+ "chrono",
  "sa-token-core",
  "sa-token-storage-memory",
  "serde_json",

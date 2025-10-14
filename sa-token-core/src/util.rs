@@ -550,7 +550,7 @@ impl StpUtil {
         permission: &str,
     ) -> SaTokenResult<()> {
         if !Self::has_permission(login_id, permission).await {
-            return Err(SaTokenError::PermissionDenied(permission.to_string()));
+            return Err(SaTokenError::PermissionDeniedDetail(permission.to_string()));
         }
         Ok(())
     }

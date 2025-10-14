@@ -17,6 +17,9 @@ A lightweight, high-performance authentication and authorization framework for R
 - 🔑 **JWT Support**: Full JWT (JSON Web Token) implementation with multiple algorithms
 - 🔒 **Security Features**: Nonce for replay attack prevention, refresh token mechanism
 - 🌐 **OAuth2 Support**: Complete OAuth2 authorization code flow implementation
+- 🌐 **WebSocket Authentication**: Secure WebSocket connection authentication with multiple token sources
+- 👥 **Online User Management**: Real-time online status tracking and message push
+- 🔄 **Distributed Session**: Cross-service session sharing for microservices architecture
 
 ## 📦 Architecture
 
@@ -35,6 +38,9 @@ sa-token-rust/
 │   ├── nonce.rs                # Nonce manager (replay attack prevention)
 │   ├── refresh.rs              # Refresh token manager
 │   ├── oauth2.rs               # OAuth2 authorization code flow
+│   ├── ws.rs                   # WebSocket authentication
+│   ├── online.rs               # Online user management and real-time push
+│   ├── distributed.rs          # Distributed session management
 │   ├── manager.rs              # SaTokenManager (core manager)
 │   ├── config.rs               # Configuration and builder
 │   └── util.rs                 # StpUtil (utility class)
@@ -53,11 +59,17 @@ sa-token-rust/
 │   ├── jwt_example.rs                 # JWT complete demo
 │   ├── token_styles_example.rs        # Token styles demo
 │   ├── security_features_example.rs   # Nonce & Refresh token demo
-│   └── oauth2_example.rs              # OAuth2 authorization flow demo
+│   ├── oauth2_example.rs              # OAuth2 authorization flow demo
+│   ├── websocket_online_example.rs    # WebSocket auth & online user demo
+│   └── distributed_session_example.rs # Distributed session demo
 └── docs/                       # Documentation
     ├── JWT_GUIDE.md / JWT_GUIDE_zh-CN.md
     ├── OAUTH2_GUIDE.md / OAUTH2_GUIDE_zh-CN.md
     ├── EVENT_LISTENER.md / EVENT_LISTENER_zh-CN.md
+    ├── WEBSOCKET_AUTH.md           # WebSocket authentication (7 languages)
+    ├── ONLINE_USER_MANAGEMENT.md   # Online user management (7 languages)
+    ├── DISTRIBUTED_SESSION.md      # Distributed session (7 languages)
+    ├── ERROR_REFERENCE.md          # Error reference (7 languages)
     └── StpUtil.md / StpUtil_zh-CN.md
 ```
 
@@ -75,6 +87,9 @@ Core authentication and authorization logic:
 - JWT support with multiple algorithms ([JWT Guide](docs/JWT_GUIDE.md))
 - Security features: Nonce (replay attack prevention), Refresh Token
 - OAuth2 authorization code flow ([OAuth2 Guide](docs/OAUTH2_GUIDE.md))
+- WebSocket authentication ([WebSocket Guide](docs/WEBSOCKET_AUTH.md))
+- Online user management and real-time push ([Online User Guide](docs/ONLINE_USER_MANAGEMENT.md))
+- Distributed session for microservices ([Distributed Session Guide](docs/DISTRIBUTED_SESSION.md))
 
 ### 2. **sa-token-adapter**
 Abstraction layer for framework integration:
@@ -603,9 +618,47 @@ warp::serve(routes)
 
 ## 📖 Documentation
 
+### Core Documentation
 - [StpUtil API Reference](docs/StpUtil.md) - Complete guide to StpUtil utility class
 - [Permission Matching Rules](docs/PermissionMatching.md#english) - How permission checking works
-- [Examples](examples/) - Working examples for all supported frameworks
+- [Architecture Overview](docs/ARCHITECTURE.md) - System architecture and design
+- [Quick Start Guide](docs/QUICK_START.md) - Get started quickly
+
+### Feature Guides
+- **Authentication & Authorization**
+  - [Event Listener Guide](docs/EVENT_LISTENER.md) - Monitor authentication events (Login, Logout, KickOut)
+  - [JWT Guide](docs/JWT_GUIDE.md) - JSON Web Token implementation with 8 algorithms
+  - [OAuth2 Guide](docs/OAUTH2_GUIDE.md) - OAuth2 authorization code flow
+
+- **Real-time & WebSocket**
+  - [WebSocket Authentication](docs/WEBSOCKET_AUTH.md) - Secure WebSocket connection auth (7 languages)
+  - [Online User Management](docs/ONLINE_USER_MANAGEMENT.md) - Real-time status tracking and push (7 languages)
+
+- **Distributed Systems**
+  - [Distributed Session](docs/DISTRIBUTED_SESSION.md) - Cross-service session sharing (7 languages)
+
+- **Error Handling**
+  - [Error Reference](docs/ERROR_REFERENCE.md) - Complete error types documentation (7 languages)
+
+### Examples
+- [Examples Directory](examples/) - Working examples for all features
+  - `event_listener_example.rs` - Event listener with WebSocket support
+  - `jwt_example.rs` - JWT generation and validation
+  - `token_styles_example.rs` - 7 token generation styles
+  - `security_features_example.rs` - Nonce & Refresh Token
+  - `oauth2_example.rs` - OAuth2 authorization flow
+  - `websocket_online_example.rs` - WebSocket auth & online user management
+  - `distributed_session_example.rs` - Distributed session management
+
+### Language Support
+Most documentation is available in 7 languages:
+- 🇬🇧 English
+- 🇨🇳 中文 (Chinese)
+- 🇹🇭 ภาษาไทย (Thai)
+- 🇻🇳 Tiếng Việt (Vietnamese)
+- 🇰🇭 ភាសាខ្មែរ (Khmer)
+- 🇲🇾 Bahasa Melayu (Malay)
+- 🇲🇲 မြန်မာဘာသာ (Burmese)
 
 ## 🔧 Advanced Usage
 

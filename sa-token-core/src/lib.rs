@@ -30,6 +30,9 @@ pub mod event;
 pub mod nonce;
 pub mod refresh;
 pub mod oauth2;
+pub mod ws;
+pub mod online;
+pub mod distributed;
 
 mod error;
 mod manager;
@@ -51,3 +54,9 @@ pub use event::{
 pub use nonce::NonceManager;
 pub use refresh::RefreshTokenManager;
 pub use oauth2::{OAuth2Manager, OAuth2Client, AuthorizationCode, AccessToken, OAuth2TokenInfo};
+pub use ws::{WsAuthManager, WsAuthInfo, WsTokenExtractor, DefaultWsTokenExtractor};
+pub use online::{OnlineManager, OnlineUser, PushMessage, MessageType, MessagePusher, InMemoryPusher};
+pub use distributed::{
+    DistributedSessionManager, DistributedSession, DistributedSessionStorage,
+    ServiceCredential, InMemoryDistributedStorage
+};

@@ -18,6 +18,7 @@ tokio = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true }
+chrono = { workspace = true }
 
 [[example]]
 name = "event_listener_example"
@@ -38,6 +39,14 @@ path = "examples/security_features_example.rs"
 [[example]]
 name = "oauth2_example"
 path = "examples/oauth2_example.rs"
+
+[[example]]
+name = "websocket_online_example"
+path = "examples/websocket_online_example.rs"
+
+[[example]]
+name = "distributed_session_example"
+path = "examples/distributed_session_example.rs"
 
 [workspace]
 members = [

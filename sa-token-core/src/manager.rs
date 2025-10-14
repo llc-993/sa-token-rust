@@ -12,6 +12,8 @@ use crate::error::{SaTokenError, SaTokenResult};
 use crate::token::{TokenInfo, TokenValue, TokenGenerator};
 use crate::session::SaSession;
 use crate::event::{SaTokenEventBus, SaTokenEvent};
+use crate::online::OnlineManager;
+use crate::distributed::DistributedSessionManager;
 
 /// sa-token 管理器
 #[derive(Clone)]
@@ -24,6 +26,10 @@ pub struct SaTokenManager {
     pub(crate) user_roles: Arc<RwLock<HashMap<String, Vec<String>>>>,
     /// 事件总线
     pub(crate) event_bus: SaTokenEventBus,
+    /// 在线用户管理器
+    online_manager: Option<Arc<OnlineManager>>,
+    /// 分布式 Session 管理器
+    distributed_manager: Option<Arc<DistributedSessionManager>>,
 }
 
 impl SaTokenManager {
@@ -35,7 +41,27 @@ impl SaTokenManager {
             user_permissions: Arc::new(RwLock::new(HashMap::new())),
             user_roles: Arc::new(RwLock::new(HashMap::new())),
             event_bus: SaTokenEventBus::new(),
+            online_manager: None,
+            distributed_manager: None,
         }
+    }
+    
+    pub fn with_online_manager(mut self, manager: Arc<OnlineManager>) -> Self {
+        self.online_manager = Some(manager);
+        self
+    }
+    
+    pub fn with_distributed_manager(mut self, manager: Arc<DistributedSessionManager>) -> Self {
+        self.distributed_manager = Some(manager);
+        self
+    }
+    
+    pub fn online_manager(&self) -> Option<&Arc<OnlineManager>> {
+        self.online_manager.as_ref()
+    }
+    
+    pub fn distributed_manager(&self) -> Option<&Arc<DistributedSessionManager>> {
+        self.distributed_manager.as_ref()
     }
     
     /// 获取事件总线的引用
@@ -230,13 +256,15 @@ impl SaTokenManager {
     
     /// 踢人下线
     pub async fn kick_out(&self, login_id: &str) -> SaTokenResult<()> {
-        // 先获取 token，用于触发事件
         let token_result = self.storage.get(&format!("sa:login:token:{}", login_id)).await;
+        
+        if let Some(online_mgr) = &self.online_manager {
+            let _ = online_mgr.kick_out_notify(login_id, "Account kicked out".to_string()).await;
+        }
         
         self.logout_by_login_id(login_id).await?;
         self.delete_session(login_id).await?;
         
-        // 触发踢出下线事件
         if let Ok(Some(token_str)) = token_result {
             let event = SaTokenEvent::kick_out(login_id, token_str);
             self.event_bus.publish(event).await;
