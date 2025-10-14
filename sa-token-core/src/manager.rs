@@ -11,6 +11,7 @@ use crate::config::SaTokenConfig;
 use crate::error::{SaTokenError, SaTokenResult};
 use crate::token::{TokenInfo, TokenValue, TokenGenerator};
 use crate::session::SaSession;
+use crate::event::{SaTokenEventBus, SaTokenEvent};
 
 /// sa-token 管理器
 #[derive(Clone)]
@@ -21,6 +22,8 @@ pub struct SaTokenManager {
     pub(crate) user_permissions: Arc<RwLock<HashMap<String, Vec<String>>>>,
     /// 用户角色映射 user_id -> roles
     pub(crate) user_roles: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    /// 事件总线
+    pub(crate) event_bus: SaTokenEventBus,
 }
 
 impl SaTokenManager {
@@ -31,15 +34,21 @@ impl SaTokenManager {
             config,
             user_permissions: Arc::new(RwLock::new(HashMap::new())),
             user_roles: Arc::new(RwLock::new(HashMap::new())),
+            event_bus: SaTokenEventBus::new(),
         }
+    }
+    
+    /// 获取事件总线的引用
+    pub fn event_bus(&self) -> &SaTokenEventBus {
+        &self.event_bus
     }
     
     /// 登录：为指定账号创建 token
     pub async fn login(&self, login_id: impl Into<String>) -> SaTokenResult<TokenValue> {
         let login_id = login_id.into();
         
-        // 生成 token
-        let token = TokenGenerator::generate(&self.config);
+        // 生成 token（支持 JWT）
+        let token = TokenGenerator::generate_with_login_id(&self.config, &login_id);
         
         // 创建 token 信息
         let mut token_info = TokenInfo::new(token.clone(), login_id.clone());
@@ -68,14 +77,38 @@ impl SaTokenManager {
             self.logout_by_login_id(&login_id).await?;
         }
         
+        // 触发登录事件
+        let event = SaTokenEvent::login(login_id.clone(), token.as_str())
+            .with_login_type(&token_info.login_type);
+        self.event_bus.publish(event).await;
+        
         Ok(token)
     }
     
     /// 登出：删除指定 token
     pub async fn logout(&self, token: &TokenValue) -> SaTokenResult<()> {
+        // 先从存储获取 token 信息，用于触发事件（不调用 get_token_info 避免递归）
         let key = format!("sa:token:{}", token.as_str());
+        let token_info_str = self.storage.get(&key).await
+            .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        
+        let token_info = if let Some(value) = token_info_str {
+            serde_json::from_str::<TokenInfo>(&value).ok()
+        } else {
+            None
+        };
+        
+        // 删除 token
         self.storage.delete(&key).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        
+        // 触发登出事件
+        if let Some(info) = token_info {
+            let event = SaTokenEvent::logout(info.login_id, token.as_str())
+                .with_login_type(&info.login_type);
+            self.event_bus.publish(event).await;
+        }
+        
         Ok(())
     }
     
@@ -197,8 +230,18 @@ impl SaTokenManager {
     
     /// 踢人下线
     pub async fn kick_out(&self, login_id: &str) -> SaTokenResult<()> {
+        // 先获取 token，用于触发事件
+        let token_result = self.storage.get(&format!("sa:login:token:{}", login_id)).await;
+        
         self.logout_by_login_id(login_id).await?;
         self.delete_session(login_id).await?;
+        
+        // 触发踢出下线事件
+        if let Ok(Some(token_str)) = token_result {
+            let event = SaTokenEvent::kick_out(login_id, token_str);
+            self.event_bus.publish(event).await;
+        }
+        
         Ok(())
     }
 }

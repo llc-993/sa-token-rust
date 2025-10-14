@@ -13,12 +13,31 @@
 - 🎯 **易于使用**: 过程宏和工具类简化集成
 - ⚡ **高性能**: 零拷贝设计，支持 async/await
 - 🔧 **高度可配置**: Token 超时、Cookie 选项、自定义 Token 名称
+- 🎧 **事件监听**: 监听登录、登出、踢出下线等认证事件
+- 🔑 **JWT 支持**: 完整的 JWT (JSON Web Token) 实现，支持多种算法
+- 🔒 **安全特性**: Nonce 防重放攻击、Refresh Token 刷新机制
+- 🌐 **OAuth2 支持**: 完整的 OAuth2 授权码模式实现
 
 ## 📦 架构
 
 ```
 sa-token-rust/
 ├── sa-token-core/              # 核心库（Token、Session、Manager）
+│   ├── token/                  # Token 管理
+│   │   ├── generator.rs        # Token 生成（UUID、Random、JWT、Hash、Timestamp、Tik）
+│   │   ├── validator.rs        # Token 验证
+│   │   ├── jwt.rs              # JWT 实现（HS256/384/512、RS256/384/512、ES256/384）
+│   │   └── mod.rs              # Token 类型（TokenValue、TokenInfo）
+│   ├── session/                # Session 管理
+│   ├── permission/             # 权限和角色检查
+│   ├── event/                  # 事件监听系统
+│   │   └── mod.rs              # 事件总线、监听器（Login、Logout、KickOut等）
+│   ├── nonce.rs                # Nonce 管理器（防重放攻击）
+│   ├── refresh.rs              # Refresh Token 管理器
+│   ├── oauth2.rs               # OAuth2 授权码模式
+│   ├── manager.rs              # SaTokenManager（核心管理器）
+│   ├── config.rs               # 配置和构建器
+│   └── util.rs                 # StpUtil（工具类）
 ├── sa-token-adapter/           # 适配器接口（Storage、Request/Response）
 ├── sa-token-macro/             # 过程宏（#[sa_check_login] 等）
 ├── sa-token-storage-memory/    # 内存存储实现
@@ -29,9 +48,17 @@ sa-token-rust/
 ├── sa-token-plugin-poem/       # Poem 框架集成
 ├── sa-token-plugin-rocket/     # Rocket 框架集成
 ├── sa-token-plugin-warp/       # Warp 框架集成
-└── examples/                   # 示例项目
-    ├── axum-full-example/      # 完整 Axum 示例
-    └── poem-full-example/      # 完整 Poem 示例
+├── examples/                   # 示例项目
+│   ├── event_listener_example.rs      # 事件监听演示
+│   ├── jwt_example.rs                 # JWT 完整演示
+│   ├── token_styles_example.rs        # Token 风格演示
+│   ├── security_features_example.rs   # Nonce & Refresh Token 演示
+│   └── oauth2_example.rs              # OAuth2 授权流程演示
+└── docs/                       # 文档
+    ├── JWT_GUIDE.md / JWT_GUIDE_zh-CN.md
+    ├── OAUTH2_GUIDE.md / OAUTH2_GUIDE_zh-CN.md
+    ├── EVENT_LISTENER.md / EVENT_LISTENER_zh-CN.md
+    └── StpUtil.md / StpUtil_zh-CN.md
 ```
 
 ## 🎯 核心组件
@@ -41,8 +68,13 @@ sa-token-rust/
 - `SaTokenManager`: Token 和 Session 操作的主管理器
 - `StpUtil`: 提供简化 API 的工具类 ([文档](docs/StpUtil_zh-CN.md))
 - Token 生成、验证和刷新
+- 多种 Token 风格（UUID、Random、JWT、Hash、Timestamp、Tik）
 - Session 管理
 - 权限和角色检查
+- 事件监听系统 ([文档](docs/EVENT_LISTENER_zh-CN.md))
+- JWT 支持，多种算法 ([JWT 指南](docs/JWT_GUIDE_zh-CN.md))
+- 安全特性：Nonce 防重放攻击、Refresh Token 刷新机制
+- OAuth2 授权码模式 ([OAuth2 指南](docs/OAUTH2_GUIDE_zh-CN.md))
 
 ### 2. **sa-token-adapter**
 框架集成的抽象层：
@@ -251,6 +283,220 @@ async fn admin_only() -> &'static str {
 }
 ```
 
+### 6. 事件监听
+
+监听登录、登出、踢出下线等认证事件：
+
+```rust
+use async_trait::async_trait;
+use sa_token_core::SaTokenListener;
+use std::sync::Arc;
+
+// 创建自定义监听器
+struct MyListener;
+
+#[async_trait]
+impl SaTokenListener for MyListener {
+    async fn on_login(&self, login_id: &str, token: &str, login_type: &str) {
+        println!("用户 {} 登录了", login_id);
+        // 在这里添加你的业务逻辑：
+        // - 记录到数据库
+        // - 发送通知
+        // - 更新统计数据
+    }
+
+    async fn on_logout(&self, login_id: &str, token: &str, login_type: &str) {
+        println!("用户 {} 登出了", login_id);
+    }
+
+    async fn on_kick_out(&self, login_id: &str, token: &str, login_type: &str) {
+        println!("用户 {} 被踢出下线", login_id);
+    }
+}
+
+// 注册监听器
+StpUtil::register_listener(Arc::new(MyListener)).await;
+
+// 或使用内置的日志监听器
+use sa_token_core::LoggingListener;
+StpUtil::register_listener(Arc::new(LoggingListener)).await;
+
+// 事件会自动触发
+let token = StpUtil::login("user_123").await?; // 触发登录事件
+StpUtil::logout(&token).await?;                 // 触发登出事件
+StpUtil::kick_out("user_123").await?;          // 触发踢出下线事件
+```
+
+📖 **[完整事件监听文档](docs/EVENT_LISTENER_zh-CN.md)**
+
+### 7. Token 风格
+
+sa-token-rust 支持多种 Token 生成风格，满足不同场景需求：
+
+```rust
+use sa_token_core::SaTokenConfig;
+use sa_token_core::config::TokenStyle;
+
+let config = SaTokenConfig::builder()
+    .token_style(TokenStyle::Tik)  // 选择你喜欢的风格
+    .build_config();
+```
+
+#### 可用的 Token 风格
+
+| 风格 | 长度 | 示例 | 使用场景 |
+|------|------|------|----------|
+| **Uuid** | 36 字符 | `550e8400-e29b-41d4-a716-446655440000` | 标准 UUID 格式，通用性强 |
+| **SimpleUuid** | 32 字符 | `550e8400e29b41d4a716446655440000` | 无横杠的 UUID，更紧凑 |
+| **Random32** | 32 字符 | `a3f5c9d8e2b7f4a6c1e8d3b9f2a7c5e1` | 随机十六进制字符串，安全性好 |
+| **Random64** | 64 字符 | `a3f5c9d8...` | 更长的随机字符串，安全性更高 |
+| **Random128** | 128 字符 | `a3f5c9d8...` | 最长随机字符串，超高安全性 |
+| **Jwt** | 可变长度 | `eyJhbGc...` | 自包含令牌，带有声明信息 ([JWT指南](docs/JWT_GUIDE.md)) |
+| **Hash** ⭐ | 64 字符 | `472c7dce...` | SHA256 哈希，包含用户信息，可追溯 |
+| **Timestamp** ⭐ | ~30 字符 | `1760404107094_a8f4f17d88fcddb8` | 包含时间戳，易于追踪 |
+| **Tik** ⭐ | 8 字符 | `GIxYHHD5` | 短小精悍，适合分享 |
+
+⭐ = 本版本新增
+
+#### Token 风格示例
+
+```rust
+// Uuid 风格（默认）
+.token_style(TokenStyle::Uuid)
+// 输出: 550e8400-e29b-41d4-a716-446655440000
+
+// Hash 风格 - 哈希中包含用户信息
+.token_style(TokenStyle::Hash)
+// 输出: 472c7dceee2b3079a1ae70746f43ba99b91636292ba7811b3bc8985a1148836f
+
+// Timestamp 风格 - 包含毫秒级时间戳
+.token_style(TokenStyle::Timestamp)
+// 输出: 1760404107094_a8f4f17d88fcddb8
+
+// Tik 风格 - 短小的8位字符 token
+.token_style(TokenStyle::Tik)
+// 输出: GIxYHHD5
+
+// JWT 风格 - 自包含令牌
+.token_style(TokenStyle::Jwt)
+.jwt_secret_key("your-secret-key")
+// 输出: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### 如何选择 Token 风格
+
+- **Uuid/SimpleUuid**: 标准选择，兼容性广
+- **Random32/64/128**: 需要特定长度的随机 token 时
+- **JWT**: 需要自包含令牌，内嵌信息时
+- **Hash**: 需要可追溯到用户信息的 token 时
+- **Timestamp**: 需要知道 token 创建时间时
+- **Tik**: 需要短小 token 用于分享（URL、二维码等）时
+
+运行示例查看所有 Token 风格效果：
+```bash
+cargo run --example token_styles_example
+```
+
+### 8. 安全特性
+
+#### Nonce 防重放攻击
+
+```rust
+use sa_token_core::NonceManager;
+
+let nonce_manager = NonceManager::new(storage, 300); // 5 分钟有效期
+
+// 生成 nonce
+let nonce = nonce_manager.generate();
+
+// 验证并消费（单次使用）
+nonce_manager.validate_and_consume(&nonce, "user_123").await?;
+
+// 第二次使用将失败（检测到重放攻击）
+match nonce_manager.validate_and_consume(&nonce, "user_123").await {
+    Err(_) => println!("重放攻击已阻止！"),
+    _ => {}
+}
+```
+
+#### Refresh Token 刷新机制
+
+```rust
+use sa_token_core::RefreshTokenManager;
+
+let refresh_manager = RefreshTokenManager::new(storage, config);
+
+// 生成 refresh token
+let refresh_token = refresh_manager.generate("user_123");
+refresh_manager.store(&refresh_token, &access_token, "user_123").await?;
+
+// 访问令牌过期时刷新
+let (new_access_token, user_id) = refresh_manager
+    .refresh_access_token(&refresh_token)
+    .await?;
+```
+
+运行安全特性示例：
+```bash
+cargo run --example security_features_example
+```
+
+### 9. OAuth2 授权
+
+完整的 OAuth2 授权码模式实现：
+
+```rust
+use sa_token_core::{OAuth2Manager, OAuth2Client};
+
+let oauth2 = OAuth2Manager::new(storage);
+
+// 注册 OAuth2 客户端
+let client = OAuth2Client {
+    client_id: "web_app_001".to_string(),
+    client_secret: "secret_abc123xyz".to_string(),
+    redirect_uris: vec!["http://localhost:3000/callback".to_string()],
+    grant_types: vec!["authorization_code".to_string()],
+    scope: vec!["read".to_string(), "write".to_string()],
+};
+
+oauth2.register_client(&client).await?;
+
+// 生成授权码
+let auth_code = oauth2.generate_authorization_code(
+    "web_app_001".to_string(),
+    "user_123".to_string(),
+    "http://localhost:3000/callback".to_string(),
+    vec!["read".to_string()],
+);
+
+oauth2.store_authorization_code(&auth_code).await?;
+
+// 授权码换取令牌
+let token = oauth2.exchange_code_for_token(
+    &auth_code.code,
+    "web_app_001",
+    "secret_abc123xyz",
+    "http://localhost:3000/callback",
+).await?;
+
+// 验证访问令牌
+let token_info = oauth2.verify_access_token(&token.access_token).await?;
+
+// 刷新令牌
+let new_token = oauth2.refresh_access_token(
+    token.refresh_token.as_ref().unwrap(),
+    "web_app_001",
+    "secret_abc123xyz",
+).await?;
+```
+
+📖 **[OAuth2 完整指南](docs/OAUTH2_GUIDE_zh-CN.md)**
+
+运行 OAuth2 示例：
+```bash
+cargo run --example oauth2_example
+```
+
 ## 📚 框架集成示例
 
 ### Axum
@@ -356,6 +602,7 @@ warp::serve(routes)
 ## 📖 文档
 
 - [StpUtil API 参考](docs/StpUtil_zh-CN.md) - StpUtil 工具类完整指南
+- [事件监听系统](docs/EVENT_LISTENER.md) - 监听登录、登出等认证事件
 - [权限匹配规则](docs/PermissionMatching.md#中文) - 权限检查工作原理
 - [示例](examples/) - 所有支持框架的工作示例
 

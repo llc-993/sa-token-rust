@@ -9,7 +9,7 @@ use sa_token_core::{StpUtil, SaTokenConfig, SaTokenManager};
 use sa_token_storage_memory::MemoryStorage;
 
 #[tokio::main]
-async fn main() -> antml:Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 StpUtil 使用示例");
     println!("=".repeat(50));
     

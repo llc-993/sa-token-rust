@@ -59,6 +59,27 @@ pub struct SaTokenConfig {
     
     /// JWT 密钥（如果使用 JWT）
     pub jwt_secret_key: Option<String>,
+    
+    /// JWT 算法（默认 HS256）
+    pub jwt_algorithm: Option<String>,
+    
+    /// JWT 签发者
+    pub jwt_issuer: Option<String>,
+    
+    /// JWT 受众
+    pub jwt_audience: Option<String>,
+    
+    /// 是否启用防重放攻击（nonce 机制）
+    pub enable_nonce: bool,
+    
+    /// Nonce 有效期（秒），-1 表示使用 token timeout
+    pub nonce_timeout: i64,
+    
+    /// 是否启用 Refresh Token
+    pub enable_refresh_token: bool,
+    
+    /// Refresh Token 有效期（秒），默认 7 天
+    pub refresh_token_timeout: i64,
 }
 
 impl Default for SaTokenConfig {
@@ -77,6 +98,13 @@ impl Default for SaTokenConfig {
             is_read_body: false,
             token_prefix: None,
             jwt_secret_key: None,
+            jwt_algorithm: Some("HS256".to_string()),
+            jwt_issuer: None,
+            jwt_audience: None,
+            enable_nonce: false,
+            nonce_timeout: -1,
+            enable_refresh_token: false,
+            refresh_token_timeout: 604800, // 7 天
         }
     }
 }
@@ -95,19 +123,27 @@ impl SaTokenConfig {
     }
 }
 
-/// Token 风格
+/// Token 风格 | Token Style
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum TokenStyle {
-    /// UUID 风格
+    /// UUID 风格 | UUID style
     Uuid,
-    /// 简化的 UUID（去掉横杠）
+    /// 简化的 UUID（去掉横杠）| Simple UUID (without hyphens)
     SimpleUuid,
-    /// 32位随机字符串
+    /// 32位随机字符串 | 32-character random string
     Random32,
-    /// 64位随机字符串
+    /// 64位随机字符串 | 64-character random string
     Random64,
-    /// 128位随机字符串
+    /// 128位随机字符串 | 128-character random string
     Random128,
+    /// JWT 风格（JSON Web Token）| JWT style (JSON Web Token)
+    Jwt,
+    /// Hash 风格（SHA256哈希）| Hash style (SHA256 hash)
+    Hash,
+    /// 时间戳风格（毫秒级时间戳+随机数）| Timestamp style (millisecond timestamp + random)
+    Timestamp,
+    /// Tik 风格（短小精悍的8位字符）| Tik style (short 8-character token)
+    Tik,
 }
 
 /// 配置构建器
@@ -169,6 +205,48 @@ impl SaTokenConfigBuilder {
     
     pub fn jwt_secret_key(mut self, key: impl Into<String>) -> Self {
         self.config.jwt_secret_key = Some(key.into());
+        self
+    }
+    
+    /// 设置 JWT 算法
+    pub fn jwt_algorithm(mut self, algorithm: impl Into<String>) -> Self {
+        self.config.jwt_algorithm = Some(algorithm.into());
+        self
+    }
+    
+    /// 设置 JWT 签发者
+    pub fn jwt_issuer(mut self, issuer: impl Into<String>) -> Self {
+        self.config.jwt_issuer = Some(issuer.into());
+        self
+    }
+    
+    /// 设置 JWT 受众
+    pub fn jwt_audience(mut self, audience: impl Into<String>) -> Self {
+        self.config.jwt_audience = Some(audience.into());
+        self
+    }
+    
+    /// 启用防重放攻击（nonce 机制）
+    pub fn enable_nonce(mut self, enable: bool) -> Self {
+        self.config.enable_nonce = enable;
+        self
+    }
+    
+    /// 设置 Nonce 有效期（秒）
+    pub fn nonce_timeout(mut self, timeout: i64) -> Self {
+        self.config.nonce_timeout = timeout;
+        self
+    }
+    
+    /// 启用 Refresh Token
+    pub fn enable_refresh_token(mut self, enable: bool) -> Self {
+        self.config.enable_refresh_token = enable;
+        self
+    }
+    
+    /// 设置 Refresh Token 有效期（秒）
+    pub fn refresh_token_timeout(mut self, timeout: i64) -> Self {
+        self.config.refresh_token_timeout = timeout;
         self
     }
     

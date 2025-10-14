@@ -13,12 +13,31 @@ A lightweight, high-performance authentication and authorization framework for R
 - 🎯 **Easy to Use**: Procedural macros and utility classes for simple integration
 - ⚡ **High Performance**: Zero-copy design, async/await support
 - 🔧 **Highly Configurable**: Token timeout, cookie options, custom token names
+- 🎧 **Event Listeners**: Monitor login, logout, kick-out, and other authentication events
+- 🔑 **JWT Support**: Full JWT (JSON Web Token) implementation with multiple algorithms
+- 🔒 **Security Features**: Nonce for replay attack prevention, refresh token mechanism
+- 🌐 **OAuth2 Support**: Complete OAuth2 authorization code flow implementation
 
 ## 📦 Architecture
 
 ```
 sa-token-rust/
 ├── sa-token-core/              # Core library (Token, Session, Manager)
+│   ├── token/                  # Token management
+│   │   ├── generator.rs        # Token generation (UUID, Random, JWT, Hash, Timestamp, Tik)
+│   │   ├── validator.rs        # Token validation
+│   │   ├── jwt.rs              # JWT implementation (HS256/384/512, RS256/384/512, ES256/384)
+│   │   └── mod.rs              # Token types (TokenValue, TokenInfo)
+│   ├── session/                # Session management
+│   ├── permission/             # Permission and role checking
+│   ├── event/                  # Event listener system
+│   │   └── mod.rs              # Event bus, listeners (Login, Logout, KickOut, etc.)
+│   ├── nonce.rs                # Nonce manager (replay attack prevention)
+│   ├── refresh.rs              # Refresh token manager
+│   ├── oauth2.rs               # OAuth2 authorization code flow
+│   ├── manager.rs              # SaTokenManager (core manager)
+│   ├── config.rs               # Configuration and builder
+│   └── util.rs                 # StpUtil (utility class)
 ├── sa-token-adapter/           # Adapter interfaces (Storage, Request/Response)
 ├── sa-token-macro/             # Procedural macros (#[sa_check_login], etc.)
 ├── sa-token-storage-memory/    # Memory storage implementation
@@ -29,9 +48,17 @@ sa-token-rust/
 ├── sa-token-plugin-poem/       # Poem framework integration
 ├── sa-token-plugin-rocket/     # Rocket framework integration
 ├── sa-token-plugin-warp/       # Warp framework integration
-└── examples/                   # Example projects
-    ├── axum-full-example/      # Complete Axum example
-    └── poem-full-example/      # Complete Poem example
+├── examples/                   # Example projects
+│   ├── event_listener_example.rs      # Event listener demo
+│   ├── jwt_example.rs                 # JWT complete demo
+│   ├── token_styles_example.rs        # Token styles demo
+│   ├── security_features_example.rs   # Nonce & Refresh token demo
+│   └── oauth2_example.rs              # OAuth2 authorization flow demo
+└── docs/                       # Documentation
+    ├── JWT_GUIDE.md / JWT_GUIDE_zh-CN.md
+    ├── OAUTH2_GUIDE.md / OAUTH2_GUIDE_zh-CN.md
+    ├── EVENT_LISTENER.md / EVENT_LISTENER_zh-CN.md
+    └── StpUtil.md / StpUtil_zh-CN.md
 ```
 
 ## 🎯 Core Components
@@ -41,8 +68,13 @@ Core authentication and authorization logic:
 - `SaTokenManager`: Main manager for token and session operations
 - `StpUtil`: Utility class providing simplified API ([Documentation](docs/StpUtil.md))
 - Token generation, validation, and refresh
+- Multiple token styles (UUID, Random, JWT, Hash, Timestamp, Tik)
 - Session management
 - Permission and role checking
+- Event listening system ([Documentation](docs/EVENT_LISTENER.md))
+- JWT support with multiple algorithms ([JWT Guide](docs/JWT_GUIDE.md))
+- Security features: Nonce (replay attack prevention), Refresh Token
+- OAuth2 authorization code flow ([OAuth2 Guide](docs/OAUTH2_GUIDE.md))
 
 ### 2. **sa-token-adapter**
 Abstraction layer for framework integration:
@@ -250,6 +282,222 @@ async fn admin_only() -> &'static str {
     "Admin only content"
 }
 ```
+
+### 6. Event Listeners
+
+Monitor authentication events like login, logout, and kick-out:
+
+```rust
+use async_trait::async_trait;
+use sa_token_core::SaTokenListener;
+use std::sync::Arc;
+
+// Create custom listener
+struct MyListener;
+
+#[async_trait]
+impl SaTokenListener for MyListener {
+    async fn on_login(&self, login_id: &str, token: &str, login_type: &str) {
+        println!("User {} logged in", login_id);
+        // Add your business logic here:
+        // - Log to database
+        // - Send notification
+        // - Update statistics
+    }
+
+    async fn on_logout(&self, login_id: &str, token: &str, login_type: &str) {
+        println!("User {} logged out", login_id);
+    }
+
+    async fn on_kick_out(&self, login_id: &str, token: &str, login_type: &str) {
+        println!("User {} was kicked out", login_id);
+    }
+}
+
+// Register listener
+StpUtil::register_listener(Arc::new(MyListener)).await;
+
+// Or use built-in logging listener
+use sa_token_core::LoggingListener;
+StpUtil::register_listener(Arc::new(LoggingListener)).await;
+
+// Events are automatically triggered
+let token = StpUtil::login("user_123").await?; // Triggers Login event
+StpUtil::logout(&token).await?;                 // Triggers Logout event
+StpUtil::kick_out("user_123").await?;          // Triggers KickOut event
+```
+
+For complete event listener documentation, see [Event Listener Guide](docs/EVENT_LISTENER.md).
+
+### 7. Token Styles
+
+sa-token-rust supports multiple token generation styles to meet different scenarios:
+
+```rust
+use sa_token_core::SaTokenConfig;
+use sa_token_core::config::TokenStyle;
+
+let config = SaTokenConfig::builder()
+    .token_style(TokenStyle::Tik)  // Choose your preferred style
+    .build_config();
+```
+
+#### Available Token Styles
+
+| Style | Length | Example | Use Case |
+|-------|--------|---------|----------|
+| **Uuid** | 36 chars | `550e8400-e29b-41d4-a716-446655440000` | Standard UUID format, universally recognized |
+| **SimpleUuid** | 32 chars | `550e8400e29b41d4a716446655440000` | UUID without hyphens, more compact |
+| **Random32** | 32 chars | `a3f5c9d8e2b7f4a6c1e8d3b9f2a7c5e1` | Random hex string, good security |
+| **Random64** | 64 chars | `a3f5c9d8...` | Longer random string, higher security |
+| **Random128** | 128 chars | `a3f5c9d8...` | Maximum random length, ultra-secure |
+| **Jwt** | Variable | `eyJhbGc...` | Self-contained token with claims ([JWT Guide](docs/JWT_GUIDE.md)) |
+| **Hash** ⭐ | 64 chars | `472c7dce...` | SHA256 hash with user info, traceable |
+| **Timestamp** ⭐ | ~30 chars | `1760404107094_a8f4f17d88fcddb8` | Includes timestamp, easy to track |
+| **Tik** ⭐ | 8 chars | `GIxYHHD5` | Short and shareable, perfect for URLs |
+
+⭐ = New in this version
+
+#### Token Style Examples
+
+```rust
+// Uuid style (default)
+.token_style(TokenStyle::Uuid)
+// Output: 550e8400-e29b-41d4-a716-446655440000
+
+// Hash style - includes user information in hash
+.token_style(TokenStyle::Hash)
+// Output: 472c7dceee2b3079a1ae70746f43ba99b91636292ba7811b3bc8985a1148836f
+
+// Timestamp style - includes millisecond timestamp
+.token_style(TokenStyle::Timestamp)
+// Output: 1760404107094_a8f4f17d88fcddb8
+
+// Tik style - short 8-character token
+.token_style(TokenStyle::Tik)
+// Output: GIxYHHD5
+
+// JWT style - self-contained token with claims
+.token_style(TokenStyle::Jwt)
+.jwt_secret_key("your-secret-key")
+// Output: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### Choosing the Right Token Style
+
+- **Uuid/SimpleUuid**: Standard choice, widely compatible
+- **Random32/64/128**: When you need random tokens with specific length
+- **JWT**: When you need self-contained tokens with embedded information
+- **Hash**: When you need tokens that can be traced back to user info
+- **Timestamp**: When you need to know when the token was created
+- **Tik**: When you need short tokens for sharing (URLs, QR codes, etc.)
+
+Run the example to see all token styles in action:
+```bash
+cargo run --example token_styles_example
+```
+
+### 8. Security Features
+
+#### Nonce (Replay Attack Prevention)
+
+```rust
+use sa_token_core::NonceManager;
+
+let nonce_manager = NonceManager::new(storage, 300); // 5 minutes TTL
+
+// Generate nonce
+let nonce = nonce_manager.generate();
+
+// Validate and consume (one-time use)
+nonce_manager.validate_and_consume(&nonce, "user_123").await?;
+
+// Second use will fail (replay attack detected)
+match nonce_manager.validate_and_consume(&nonce, "user_123").await {
+    Err(_) => println!("Replay attack prevented!"),
+    _ => {}
+}
+```
+
+#### Refresh Token
+
+```rust
+use sa_token_core::RefreshTokenManager;
+
+let refresh_manager = RefreshTokenManager::new(storage, config);
+
+// Generate refresh token
+let refresh_token = refresh_manager.generate("user_123");
+refresh_manager.store(&refresh_token, &access_token, "user_123").await?;
+
+// Refresh access token when expired
+let (new_access_token, user_id) = refresh_manager
+    .refresh_access_token(&refresh_token)
+    .await?;
+```
+
+Run security features example:
+```bash
+cargo run --example security_features_example
+```
+
+### 9. OAuth2 Authorization
+
+Complete OAuth2 authorization code flow implementation:
+
+```rust
+use sa_token_core::{OAuth2Manager, OAuth2Client};
+
+let oauth2 = OAuth2Manager::new(storage);
+
+// Register OAuth2 client
+let client = OAuth2Client {
+    client_id: "web_app_001".to_string(),
+    client_secret: "secret_abc123xyz".to_string(),
+    redirect_uris: vec!["http://localhost:3000/callback".to_string()],
+    grant_types: vec!["authorization_code".to_string()],
+    scope: vec!["read".to_string(), "write".to_string()],
+};
+
+oauth2.register_client(&client).await?;
+
+// Generate authorization code
+let auth_code = oauth2.generate_authorization_code(
+    "web_app_001".to_string(),
+    "user_123".to_string(),
+    "http://localhost:3000/callback".to_string(),
+    vec!["read".to_string()],
+);
+
+oauth2.store_authorization_code(&auth_code).await?;
+
+// Exchange code for token
+let token = oauth2.exchange_code_for_token(
+    &auth_code.code,
+    "web_app_001",
+    "secret_abc123xyz",
+    "http://localhost:3000/callback",
+).await?;
+
+// Verify access token
+let token_info = oauth2.verify_access_token(&token.access_token).await?;
+
+// Refresh token
+let new_token = oauth2.refresh_access_token(
+    token.refresh_token.as_ref().unwrap(),
+    "web_app_001",
+    "secret_abc123xyz",
+).await?;
+```
+
+📖 **[OAuth2 Complete Guide](docs/OAUTH2_GUIDE.md)**
+
+Run OAuth2 example:
+```bash
+cargo run --example oauth2_example
+```
+
+📖 **[Full Event Listener Documentation](docs/EVENT_LISTENER.md)**
 
 ## 📚 Framework Integration Examples
 

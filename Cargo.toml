@@ -1,3 +1,44 @@
+[package]
+name = "sa-token-rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "A powerful Rust authentication and authorization framework"
+
+[dependencies]
+sa-token-core = { version = "0.1.3", path = "./sa-token-core" }
+sa-token-storage-memory = { version = "0.1.3", path = "./sa-token-storage-memory" }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+serde_json = { workspace = true }
+
+[[example]]
+name = "event_listener_example"
+path = "examples/event_listener_example.rs"
+
+[[example]]
+name = "jwt_example"
+path = "examples/jwt_example.rs"
+
+[[example]]
+name = "token_styles_example"
+path = "examples/token_styles_example.rs"
+
+[[example]]
+name = "security_features_example"
+path = "examples/security_features_example.rs"
+
+[[example]]
+name = "oauth2_example"
+path = "examples/oauth2_example.rs"
+
 [workspace]
 members = [
     "sa-token-core",
@@ -25,7 +66,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["金书记"]

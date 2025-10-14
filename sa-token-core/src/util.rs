@@ -27,6 +27,7 @@ use crate::{SaTokenManager, SaTokenResult, SaTokenError};
 use crate::token::{TokenValue, TokenInfo};
 use crate::session::SaSession;
 use crate::context::SaTokenContext;
+use crate::event::{SaTokenEventBus, SaTokenListener};
 
 /// 全局 SaTokenManager 实例
 static GLOBAL_MANAGER: OnceCell<Arc<SaTokenManager>> = OnceCell::new();
@@ -71,6 +72,39 @@ impl StpUtil {
     fn get_manager() -> &'static Arc<SaTokenManager> {
         GLOBAL_MANAGER.get()
             .expect("StpUtil not initialized. Call StpUtil::init_manager() first.")
+    }
+    
+    /// 获取事件总线，用于注册监听器
+    /// 
+    /// # 示例
+    /// ```rust,ignore
+    /// use sa_token_core::{StpUtil, SaTokenListener};
+    /// use async_trait::async_trait;
+    /// 
+    /// struct MyListener;
+    /// 
+    /// #[async_trait]
+    /// impl SaTokenListener for MyListener {
+    ///     async fn on_login(&self, login_id: &str, token: &str, login_type: &str) {
+    ///         println!("用户 {} 登录了", login_id);
+    ///     }
+    /// }
+    /// 
+    /// // 注册监听器
+    /// StpUtil::event_bus().register(Arc::new(MyListener)).await;
+    /// ```
+    pub fn event_bus() -> &'static SaTokenEventBus {
+        &Self::get_manager().event_bus
+    }
+    
+    /// 注册事件监听器（便捷方法）
+    /// 
+    /// # 示例
+    /// ```rust,ignore
+    /// StpUtil::register_listener(Arc::new(MyListener)).await;
+    /// ```
+    pub async fn register_listener(listener: Arc<dyn SaTokenListener>) {
+        Self::event_bus().register(listener).await;
     }
     
     // ==================== 登录相关 ====================
@@ -213,7 +247,7 @@ impl StpUtil {
     pub fn get_login_id_as_long() -> SaTokenResult<i64> {
         let login_id_str = Self::get_login_id_as_string()?;
         login_id_str.parse::<i64>()
-            .map_err(|_| SaTokenError::InvalidToken("Login ID is not a valid number".to_string()))
+            .map_err(|_| SaTokenError::LoginIdNotNumber)
     }
     
     /// 获取当前会话的 token 信息（无参数）

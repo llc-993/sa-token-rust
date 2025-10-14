@@ -26,6 +26,10 @@ pub mod permission;
 pub mod context;
 pub mod config;
 pub mod util;
+pub mod event;
+pub mod nonce;
+pub mod refresh;
+pub mod oauth2;
 
 mod error;
 mod manager;
@@ -37,6 +41,13 @@ pub use util::{StpUtil, LoginId};
 pub use context::SaTokenContext;
 
 // 重新导出核心类型
-pub use token::{TokenInfo, TokenValue};
+pub use token::{TokenInfo, TokenValue, JwtManager, JwtClaims, JwtAlgorithm};
 pub use session::SaSession;
 pub use permission::{PermissionChecker, RoleChecker};
+pub use event::{
+    SaTokenEvent, SaTokenEventType, SaTokenListener, 
+    SaTokenEventBus, LoggingListener
+};
+pub use nonce::NonceManager;
+pub use refresh::RefreshTokenManager;
+pub use oauth2::{OAuth2Manager, OAuth2Client, AuthorizationCode, AccessToken, OAuth2TokenInfo};

@@ -21,11 +21,11 @@ impl TokenValidator {
     /// 检查 token 格式是否正确
     pub fn check_format(token: &str) -> SaTokenResult<()> {
         if token.is_empty() {
-            return Err(SaTokenError::InvalidToken("Token is empty".to_string()));
+            return Err(SaTokenError::TokenEmpty);
         }
         
         if token.len() < 8 {
-            return Err(SaTokenError::InvalidToken("Token is too short".to_string()));
+            return Err(SaTokenError::TokenTooShort);
         }
         
         Ok(())

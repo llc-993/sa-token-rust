@@ -7,9 +7,11 @@ use serde::{Deserialize, Serialize};
 
 pub mod generator;
 pub mod validator;
+pub mod jwt;
 
 pub use generator::TokenGenerator;
 pub use validator::TokenValidator;
+pub use jwt::{JwtManager, JwtClaims, JwtAlgorithm};
 
 /// Token 值
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -69,6 +71,15 @@ pub struct TokenInfo {
     
     /// 额外数据
     pub extra_data: Option<serde_json::Value>,
+    
+    /// Nonce（用于防重放攻击）
+    pub nonce: Option<String>,
+    
+    /// Refresh Token（用于刷新访问令牌）
+    pub refresh_token: Option<String>,
+    
+    /// Refresh Token 过期时间
+    pub refresh_token_expire_time: Option<DateTime<Utc>>,
 }
 
 impl TokenInfo {
@@ -83,6 +94,9 @@ impl TokenInfo {
             expire_time: None,
             device: None,
             extra_data: None,
+            nonce: None,
+            refresh_token: None,
+            refresh_token_expire_time: None,
         }
     }
     
