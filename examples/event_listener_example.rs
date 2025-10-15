@@ -22,6 +22,7 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use async_trait::async_trait;
+use tokio::sync::RwLock;
 use sa_token_core::{
     SaTokenConfig, StpUtil,
     SaTokenListener, LoggingListener, WsAuthManager,
@@ -30,13 +31,13 @@ use sa_token_storage_memory::MemoryStorage;
 
 /// 自定义监听器 - 记录用户行为 | Custom Listener - Track User Behavior
 struct UserBehaviorListener {
-    websocket_sessions: Arc<tokio::sync::RwLock<HashMap<String, usize>>>,
+    websocket_sessions: Arc<RwLock<HashMap<String, usize>>>,
 }
 
 impl UserBehaviorListener {
     fn new() -> Self {
         Self {
-            websocket_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            websocket_sessions: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
@@ -125,15 +126,15 @@ impl SaTokenListener for SecurityMonitorListener {
 
 /// 统计监听器 - 统计用户活跃度
 struct StatisticsListener {
-    login_count: Arc<tokio::sync::RwLock<u64>>,
-    logout_count: Arc<tokio::sync::RwLock<u64>>,
+    login_count: Arc<RwLock<u64>>,
+    logout_count: Arc<RwLock<u64>>,
 }
 
 impl StatisticsListener {
     fn new() -> Self {
         Self {
-            login_count: Arc::new(tokio::sync::RwLock::new(0)),
-            logout_count: Arc::new(tokio::sync::RwLock::new(0)),
+            login_count: Arc::new(RwLock::new(0)),
+            logout_count: Arc::new(RwLock::new(0)),
         }
     }
 

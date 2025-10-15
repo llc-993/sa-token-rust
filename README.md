@@ -6,7 +6,7 @@ A lightweight, high-performance authentication and authorization framework for R
 
 ## ✨ Features
 
-- 🚀 **Multiple Web Framework Support**: Axum, Actix-web, Poem, Rocket, Warp
+- 🚀 **Multiple Web Framework Support**: Axum, Actix-web, Poem, Rocket, Warp, Salvo, Tide, Gotham, Ntex
 - 🔐 **Complete Authentication**: Login, logout, token validation, session management
 - 🛡️ **Fine-grained Authorization**: Permission and role-based access control
 - 💾 **Flexible Storage**: Memory, Redis, and database storage backends
@@ -56,6 +56,10 @@ sa-token-rust/
 ├── sa-token-plugin-poem/       # Poem framework integration
 ├── sa-token-plugin-rocket/     # Rocket framework integration
 ├── sa-token-plugin-warp/       # Warp framework integration
+├── sa-token-plugin-salvo/      # Salvo framework integration
+├── sa-token-plugin-tide/       # Tide framework integration
+├── sa-token-plugin-gotham/     # Gotham framework integration
+├── sa-token-plugin-ntex/       # Ntex framework integration
 ├── examples/                   # Example projects
 │   ├── event_listener_example.rs      # Event listener demo
 │   ├── jwt_example.rs                 # JWT complete demo
@@ -110,6 +114,8 @@ Procedural macros for annotation-style authentication:
 - `#[sa_ignore]`: Skip authentication
 
 ### 4. **Web Framework Plugins**
+Supported frameworks: Axum, Actix-web, Poem, Rocket, Warp, Salvo, Tide, Gotham, Ntex
+
 All plugins provide:
 - State management with Builder pattern
 - Dual middleware (basic + login-required)
@@ -790,8 +796,32 @@ Most documentation is available in 7 languages:
   - Unified logout across all applications
   - Cross-domain support with origin whitelist
   - Service URL matching for security
+- 🔧 **Enhanced Universal Adapter**: Common utility functions for framework integration
+  - `parse_cookies()`: Parse HTTP Cookie headers
+  - `parse_query_string()`: Parse URL query parameters with auto URL decoding
+  - `build_cookie_string()`: Build Set-Cookie header strings
+  - `extract_bearer_token()`: Extract Bearer token from Authorization header
+  - Complete unit tests and bilingual documentation
+- 🚀 **4 New Framework Support**: Expanded framework ecosystem
+  - **Salvo (v0.73)**: Modern web framework with Handler macros
+    - Request/Response adapter
+    - Authentication and permission middleware
+  - **Tide (v0.16)**: async-std based framework
+    - Request/Response adapter
+    - Middleware with extension data support
+  - **Gotham (v0.7)**: Type-safe routing framework
+    - Simplified middleware (due to complex State system)
+  - **Ntex (v2.8)**: High-performance framework
+    - Complete middleware with Service trait
 
-### Version 0.1.2
+**Improvements:**
+- Reduced code duplication by 70% with common utilities
+- Unified interface design across all 9 frameworks
+- Better type safety with TokenValue conversions
+- Improved error handling for each framework
+- Framework support expanded from 5 to 9 (+80%)
+
+### Version 0.1.3
 
 **New Features:**  
 - 🌐 **WebSocket Authentication**: Secure WebSocket connection authentication

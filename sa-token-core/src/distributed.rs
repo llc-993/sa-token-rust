@@ -246,6 +246,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use chrono::{DateTime, Utc};
+use tokio::sync::RwLock;
 
 /// Distributed session data structure
 /// 分布式 Session 数据结构
@@ -352,7 +353,7 @@ pub struct DistributedSessionManager {
     session_timeout: Duration,
     
     /// Registered service credentials | 已注册的服务凭证
-    service_credentials: Arc<tokio::sync::RwLock<HashMap<String, ServiceCredential>>>,
+    service_credentials: Arc<RwLock<HashMap<String, ServiceCredential>>>,
 }
 
 impl DistributedSessionManager {
@@ -382,7 +383,7 @@ impl DistributedSessionManager {
             storage,
             service_id,
             session_timeout,
-            service_credentials: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            service_credentials: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -657,11 +658,11 @@ impl DistributedSessionManager {
 pub struct InMemoryDistributedStorage {
     /// Sessions storage: session_id -> DistributedSession
     /// Sessions 存储: session_id -> DistributedSession
-    sessions: Arc<tokio::sync::RwLock<HashMap<String, DistributedSession>>>,
+    sessions: Arc<RwLock<HashMap<String, DistributedSession>>>,
     
     /// Login index: login_id -> Vec<session_id>
     /// 登录索引: login_id -> Vec<session_id>
-    login_index: Arc<tokio::sync::RwLock<HashMap<String, Vec<String>>>>,
+    login_index: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
 impl InMemoryDistributedStorage {
@@ -669,8 +670,8 @@ impl InMemoryDistributedStorage {
     /// 创建新的内存存储
     pub fn new() -> Self {
         Self {
-            sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
-            login_index: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            sessions: Arc::new(RwLock::new(HashMap::new())),
+            login_index: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
