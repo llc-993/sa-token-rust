@@ -44,9 +44,27 @@ sa-token supports the following event types:
 
 ### 1. Register Listeners
 
-There are two ways to register listeners:
+There are three ways to register listeners:
 
-#### Method 1: Through SaTokenManager
+#### ⭐ Method 1: Builder Pattern (Recommended)
+
+```rust
+use sa_token_core::SaTokenConfig;
+use sa_token_storage_memory::MemoryStorage;
+use std::sync::Arc;
+
+// One-line initialization: create manager + register listeners + initialize StpUtil!
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .timeout(7200)
+    .register_listener(Arc::new(LoggingListener))  // Register here!
+    .register_listener(Arc::new(MyListener))  // Support multiple listeners!
+    .build();  // Auto-complete all initialization!
+
+// StpUtil is ready to use immediately!
+```
+
+#### Method 2: Through SaTokenManager
 
 ```rust
 use sa_token_core::{SaTokenManager, LoggingListener};
@@ -55,23 +73,19 @@ use std::sync::Arc;
 // Create manager
 let manager = SaTokenManager::new(storage, config);
 
-// Register listener
+// Register listener (synchronous, no .await needed!)
 manager.event_bus()
-    .register(Arc::new(LoggingListener))
-    .await;
+    .register(Arc::new(LoggingListener));
 ```
 
-#### Method 2: Through StpUtil
+#### Method 3: Through StpUtil
 
 ```rust
 use sa_token_core::{StpUtil, LoggingListener};
 use std::sync::Arc;
 
-// Initialize StpUtil
-StpUtil::init_manager(manager);
-
-// Register listener
-StpUtil::register_listener(Arc::new(LoggingListener)).await;
+// Register listener (synchronous, no .await needed!)
+StpUtil::register_listener(Arc::new(LoggingListener));
 ```
 
 ### 2. Automatic Event Triggering
@@ -129,9 +143,24 @@ impl SaTokenListener for MyListener {
 
 ### Register and Use
 
+#### Recommended: Builder Pattern
+
 ```rust
-// Register listener
-StpUtil::register_listener(Arc::new(MyListener)).await;
+// Register listener during initialization
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .register_listener(Arc::new(MyListener))
+    .build();
+
+// Use sa-token normally, events will be triggered automatically
+let token = StpUtil::login("user_123").await?;
+```
+
+#### Alternative: Manual Registration
+
+```rust
+// Register listener after initialization (synchronous)
+StpUtil::register_listener(Arc::new(MyListener));
 
 // Use sa-token normally, events will be triggered automatically
 let token = StpUtil::login("user_123").await?;
@@ -147,8 +176,14 @@ Built-in logging listener that uses tracing to log all events:
 use sa_token_core::LoggingListener;
 use std::sync::Arc;
 
-// Register logging listener
-StpUtil::register_listener(Arc::new(LoggingListener)).await;
+// Via Builder (Recommended)
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .register_listener(Arc::new(LoggingListener))
+    .build();
+
+// Or register manually (synchronous)
+StpUtil::register_listener(Arc::new(LoggingListener));
 ```
 
 Sample output:
@@ -273,44 +308,59 @@ impl SaTokenListener for WebSocketNotifyListener {
 ### Scenario 5: Multiple Listeners Cooperation
 
 ```rust
-// Register multiple listeners
-async fn setup_listeners(manager: &SaTokenManager) {
+// Method 1: Register via Builder (Recommended)
+fn setup_listeners_builder() -> SaTokenManager {
+    SaTokenConfig::builder()
+        .storage(Arc::new(MemoryStorage::new()))
+        .register_listener(Arc::new(LoggingListener))
+        .register_listener(Arc::new(LoginLogListener { 
+            db_pool: Arc::clone(&db_pool) 
+        }))
+        .register_listener(Arc::new(SecurityMonitorListener { 
+            alert_service: Arc::clone(&alert_service) 
+        }))
+        .register_listener(Arc::new(StatisticsListener { 
+            redis: Arc::clone(&redis_client) 
+        }))
+        .register_listener(Arc::new(WebSocketNotifyListener { 
+            ws_manager: Arc::clone(&ws_manager) 
+        }))
+        .build()  // Returns fully initialized manager!
+}
+
+// Method 2: Register manually (synchronous, no async needed!)
+fn setup_listeners_manual(manager: &SaTokenManager) {
     // Logging
     manager.event_bus()
-        .register(Arc::new(LoggingListener))
-        .await;
+        .register(Arc::new(LoggingListener));
     
     // Database recording
     let db_listener = LoginLogListener {
         db_pool: Arc::clone(&db_pool),
     };
     manager.event_bus()
-        .register(Arc::new(db_listener))
-        .await;
+        .register(Arc::new(db_listener));
     
     // Security monitoring
     let security_listener = SecurityMonitorListener {
         alert_service: Arc::clone(&alert_service),
     };
     manager.event_bus()
-        .register(Arc::new(security_listener))
-        .await;
+        .register(Arc::new(security_listener));
     
     // Real-time statistics
     let stats_listener = StatisticsListener {
         redis: Arc::clone(&redis_client),
     };
     manager.event_bus()
-        .register(Arc::new(stats_listener))
-        .await;
+        .register(Arc::new(stats_listener));
     
     // WebSocket notifications
     let ws_listener = WebSocketNotifyListener {
         ws_manager: Arc::clone(&ws_manager),
     };
     manager.event_bus()
-        .register(Arc::new(ws_listener))
-        .await;
+        .register(Arc::new(ws_listener));
 }
 ```
 
@@ -380,18 +430,18 @@ Event bus methods:
 // Create event bus
 let bus = SaTokenEventBus::new();
 
-// Register listener
-bus.register(Arc::new(MyListener)).await;
+// Register listener (synchronous)
+bus.register(Arc::new(MyListener));
 
-// Publish event
+// Publish event (asynchronous)
 let event = SaTokenEvent::login("user_123", "token_abc");
 bus.publish(event).await;
 
-// Clear all listeners
-bus.clear().await;
+// Clear all listeners (synchronous)
+bus.clear();
 
-// Get listener count
-let count = bus.listener_count().await;
+// Get listener count (synchronous)
+let count = bus.listener_count();
 ```
 
 ### StpUtil Event Methods
@@ -400,8 +450,8 @@ let count = bus.listener_count().await;
 // Get event bus
 let bus = StpUtil::event_bus();
 
-// Register listener
-StpUtil::register_listener(Arc::new(MyListener)).await;
+// Register listener (synchronous, no .await needed!)
+StpUtil::register_listener(Arc::new(MyListener));
 ```
 
 ## Notes

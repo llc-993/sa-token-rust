@@ -2,24 +2,25 @@
 //
 //! # sa-token-plugin-poem
 //! 
-//! Poem 框架集成插件
+//! Poem 框架集成插件 - 一站式认证授权解决方案
 //! 
-//! ## 功能特性
+//! ## 快速开始
 //! 
-//! - 🔐 完整的认证和授权支持
-//! - 🚀 高性能异步中间件
-//! - 🎯 灵活的 Token 提取器
-//! - 🛠 易于集成和使用
+//! 只需要导入这一个包，即可使用所有功能：
+//! 
+//! ```toml
+//! [dependencies]
+//! sa-token-plugin-poem = "0.1.3"  # 默认使用内存存储
+//! # 或者使用 Redis 存储
+//! sa-token-plugin-poem = { version = "0.1.3", features = ["redis"] }
+//! ```
 //! 
 //! ## 使用示例
 //! 
-//! ### 基础使用
-//! 
 //! ```rust,ignore
 //! use std::sync::Arc;
-//! use poem::{Route, Server, listener::TcpListener, handler, web::Data};
-//! use sa_token_plugin_poem::{SaTokenState, SaTokenMiddleware, SaTokenExtractor};
-//! use sa_token_storage_memory::MemoryStorage;
+//! use poem::{Route, Server, listener::TcpListener, handler};
+//! use sa_token_plugin_poem::*;  // 一次性导入所有功能
 //! 
 //! #[handler]
 //! async fn user_info(token: SaTokenExtractor) -> String {
@@ -28,23 +29,25 @@
 //! 
 //! #[tokio::main]
 //! async fn main() -> Result<(), std::io::Error> {
-//!     // 创建 sa-token 状态
+//!     // 1. 初始化（使用内存存储，已重新导出）
 //!     let sa_token_state = SaTokenState::builder()
 //!         .storage(Arc::new(MemoryStorage::new()))
-//!         .token_name("Authorization")
 //!         .timeout(7200)
 //!         .build();
 //!     
-//!     // 初始化全局 StpUtil
-//!     sa_token_core::StpUtil::init_manager((*sa_token_state.manager).clone());
-//!     
-//!     // 创建路由
+//!     // 2. 创建路由
 //!     let app = Route::new()
 //!         .at("/api/user/info", poem::get(user_info))
 //!         .with(SaTokenMiddleware::new(sa_token_state.manager.clone()))
 //!         .data(sa_token_state);
 //!     
-//!     // 启动服务器
+//!     // 3. 使用宏检查权限
+//!     #[sa_check_login]
+//!     #[handler]
+//!     async fn protected() -> String {
+//!         "Protected resource".to_string()
+//!     }
+//!     
 //!     Server::new(TcpListener::bind("127.0.0.1:3000"))
 //!         .run(app)
 //!         .await
@@ -55,13 +58,98 @@ pub mod adapter;
 pub mod middleware;
 pub mod extractor;
 
+// ============================================================================
+// Poem 框架集成（本插件特有）
+// ============================================================================
 pub use middleware::{SaTokenMiddleware, SaCheckLoginMiddleware};
 pub use extractor::{SaTokenExtractor, OptionalSaTokenExtractor, LoginIdExtractor};
 pub use adapter::{PoemRequestAdapter, PoemResponseAdapter};
 
+// ============================================================================
+// 重新导出核心功能（sa-token-core）
+// ============================================================================
+pub use sa_token_core::{
+    // 核心管理器
+    SaTokenManager, StpUtil,
+    
+    // 配置
+    SaTokenConfig,
+    config::TokenStyle,
+    
+    // Token 相关
+    TokenValue, TokenInfo,
+    
+    // 会话管理
+    SaSession,
+    
+    // 权限
+    PermissionChecker,
+    
+    // 错误处理
+    SaTokenError,
+    
+    // 事件系统
+    SaTokenEvent, SaTokenListener, SaTokenEventBus, LoggingListener,
+    
+    // JWT 支持
+    JwtManager, JwtClaims, JwtAlgorithm,
+    
+    // OAuth2 支持
+    OAuth2Manager, OAuth2Client, AuthorizationCode, AccessToken, OAuth2TokenInfo,
+    
+    // 安全特性
+    NonceManager, RefreshTokenManager,
+    
+    // WebSocket 认证
+    WsAuthManager, WsAuthInfo, WsTokenExtractor, DefaultWsTokenExtractor,
+    
+    // 在线用户管理
+    OnlineManager, OnlineUser, PushMessage, MessageType, MessagePusher, InMemoryPusher,
+    
+    // 分布式会话
+    DistributedSessionManager, DistributedSession, DistributedSessionStorage, 
+    ServiceCredential, InMemoryDistributedStorage,
+};
+
+// ============================================================================
+// 重新导出适配器接口（sa-token-adapter）
+// ============================================================================
+pub use sa_token_adapter::{
+    storage::SaStorage,
+    framework::FrameworkAdapter,
+};
+
+// ============================================================================
+// 重新导出宏（sa-token-macro）
+// ============================================================================
+pub use sa_token_macro::{
+    sa_check_login,
+    sa_check_permission,
+    sa_check_role,
+    sa_check_permissions_and,
+    sa_check_permissions_or,
+    sa_check_roles_and,
+    sa_check_roles_or,
+    sa_ignore,
+};
+
+// ============================================================================
+// 重新导出存储实现（根据 feature 条件编译）
+// ============================================================================
+
+/// 内存存储（默认启用）
+#[cfg(feature = "memory")]
+pub use sa_token_storage_memory::MemoryStorage;
+
+/// Redis 存储
+#[cfg(feature = "redis")]
+pub use sa_token_storage_redis::RedisStorage;
+
+/// 数据库存储
+#[cfg(feature = "database")]
+pub use sa_token_storage_database::DatabaseStorage;
+
 use std::sync::Arc;
-use sa_token_core::{SaTokenManager, SaTokenConfig};
-use sa_token_adapter::storage::SaStorage;
 
 /// Poem 应用状态
 #[derive(Clone)]

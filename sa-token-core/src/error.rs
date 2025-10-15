@@ -107,6 +107,19 @@ pub enum SaTokenError {
     #[error("Invalid scope data")]
     OAuth2InvalidScope,
     
+    // ============ SSO Errors | SSO 单点登录错误 ============
+    #[error("SSO ticket not found or invalid")]
+    InvalidTicket,
+    
+    #[error("SSO ticket has expired")]
+    TicketExpired,
+    
+    #[error("Service URL mismatch")]
+    ServiceMismatch,
+    
+    #[error("SSO session not found")]
+    SsoSessionNotFound,
+    
     // ============ System Errors | 系统错误 ============
     #[error("Storage error: {0}")]
     StorageError(String),

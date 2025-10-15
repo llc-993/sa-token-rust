@@ -20,6 +20,7 @@
 - 🌐 **WebSocket 认证**: 安全的 WebSocket 连接认证，支持多种 Token 来源
 - 👥 **在线用户管理**: 实时在线状态跟踪和消息推送
 - 🔄 **分布式 Session**: 跨服务 Session 共享，适用于微服务架构
+- 🎫 **SSO 单点登录**: 完整的 SSO 实现，支持票据认证和统一登出
 
 ## 📦 架构
 
@@ -41,6 +42,7 @@ sa-token-rust/
 │   ├── ws.rs                   # WebSocket 认证
 │   ├── online.rs               # 在线用户管理和实时推送
 │   ├── distributed.rs          # 分布式 Session 管理
+│   ├── sso.rs                  # SSO 单点登录（Server、Client、Ticket）
 │   ├── manager.rs              # SaTokenManager（核心管理器）
 │   ├── config.rs               # 配置和构建器
 │   └── util.rs                 # StpUtil（工具类）
@@ -61,7 +63,8 @@ sa-token-rust/
 │   ├── security_features_example.rs   # Nonce & Refresh Token 演示
 │   ├── oauth2_example.rs              # OAuth2 授权流程演示
 │   ├── websocket_online_example.rs    # WebSocket 认证 & 在线用户演示
-│   └── distributed_session_example.rs # 分布式 Session 演示
+│   ├── distributed_session_example.rs # 分布式 Session 演示
+│   └── sso_example.rs                 # SSO 单点登录演示
 └── docs/                       # 文档
     ├── JWT_GUIDE.md / JWT_GUIDE_zh-CN.md
     ├── OAUTH2_GUIDE.md / OAUTH2_GUIDE_zh-CN.md
@@ -90,6 +93,7 @@ sa-token-rust/
 - WebSocket 认证 ([WebSocket 指南](docs/WEBSOCKET_AUTH.md))
 - 在线用户管理和实时推送 ([在线用户指南](docs/ONLINE_USER_MANAGEMENT.md))
 - 微服务分布式 Session ([分布式 Session 指南](docs/DISTRIBUTED_SESSION.md))
+- SSO 单点登录 ([SSO 指南](docs/SSO_GUIDE.md#中文))
 
 ### 2. **sa-token-adapter**
 框架集成的抽象层：
@@ -116,32 +120,85 @@ sa-token-rust/
 
 ## 🚀 快速开始
 
-### 1. 添加依赖
+### ⚡ 简化使用方式（推荐）
+
+**新功能！** 只需一个依赖即可导入所有功能：
 
 ```toml
 [dependencies]
-sa-token-core = "0.1"
-sa-token-storage-memory = "0.1"
-sa-token-plugin-axum = "0.1"  # 选择你的框架
+# 一站式包 - 包含核心、宏和存储
+sa-token-plugin-axum = "0.1.4"  # 默认：内存存储
 tokio = { version = "1", features = ["full"] }
-axum = "0.7"
+axum = "0.8"
 ```
+
+**一行导入：**
+```rust
+use sa_token_plugin_axum::*;  // ✨ 你需要的一切！
+
+// 现在你可以直接使用：
+// - SaTokenManager, StpUtil
+// - MemoryStorage, RedisStorage（通过 features）
+// - 所有宏：#[sa_check_login], #[sa_check_permission]
+// - JWT, OAuth2, WebSocket, 在线用户等
+```
+
+**通过 features 选择存储后端：**
+```toml
+# Redis 存储
+sa-token-plugin-axum = { version = "0.1.4", features = ["redis"] }
+
+# 多个存储后端
+sa-token-plugin-axum = { version = "0.1.4", features = ["memory", "redis"] }
+
+# 所有存储后端
+sa-token-plugin-axum = { version = "0.1.4", features = ["full"] }
+```
+
+**可用的 features：**
+- `memory`（默认）：内存存储
+- `redis`：Redis 存储  
+- `database`：数据库存储
+- `full`：所有存储后端
+
+**可用的插件：**
+- `sa-token-plugin-axum` - Axum 框架
+- `sa-token-plugin-actix-web` - Actix-web 框架
+- `sa-token-plugin-poem` - Poem 框架
+- `sa-token-plugin-rocket` - Rocket 框架
+- `sa-token-plugin-warp` - Warp 框架
+
+---
+
+### 📦 传统使用方式（高级）
+
+如果你喜欢细粒度控制，仍然可以分别导入各个包：
+
+```toml
+[dependencies]
+sa-token-core = "0.1.4"
+sa-token-storage-memory = "0.1.4"
+sa-token-plugin-axum = "0.1.4"
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+```
+
+---
 
 ### 2. 初始化 sa-token
 
 #### 方式 A: 使用内存存储（开发环境）
 
+**使用简化导入：**
 ```rust
-use sa_token_core::StpUtil;
-use sa_token_plugin_axum::SaTokenState;
-use sa_token_storage_memory::MemoryStorage;
+use sa_token_plugin_axum::*;  // ✨ 一行导入
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
     // 创建状态（StpUtil 会自动初始化）
     let state = SaTokenState::builder()
-        .storage(Arc::new(MemoryStorage::new()))
+        .storage(Arc::new(MemoryStorage::new()))  // 已重新导出！
         .token_name("Authorization")
         .timeout(86400)  // 24 小时
         .build();
@@ -153,11 +210,15 @@ async fn main() {
 
 #### 方式 B: 使用 Redis 存储（生产环境）
 
-**方法 1: Redis URL（推荐简单场景）**
+**添加 Redis feature 到依赖：**
+```toml
+[dependencies]
+sa-token-plugin-axum = { version = "0.1.4", features = ["redis"] }
+```
 
+**使用简化导入：**
 ```rust
-use sa_token_storage_redis::RedisStorage;
-use sa_token_plugin_axum::SaTokenState;
+use sa_token_plugin_axum::*;  // ✨ RedisStorage 已包含！
 use std::sync::Arc;
 
 #[tokio::main]
@@ -512,6 +573,61 @@ let new_token = oauth2.refresh_access_token(
 cargo run --example oauth2_example
 ```
 
+### 10. SSO 单点登录
+
+完整的 SSO 实现，支持票据认证：
+
+```rust
+use sa_token_core::{SsoServer, SsoClient, SsoConfig};
+
+// 创建 SSO Server
+let sso_server = SsoServer::new(manager.clone())
+    .with_ticket_timeout(300);  // 5 分钟
+
+// 创建 SSO Client
+let client = SsoClient::new(
+    manager.clone(),
+    "http://sso.example.com/auth".to_string(),
+    "http://app1.example.com".to_string(),
+);
+
+// 配置跨域支持的 SSO
+let config = SsoConfig::builder()
+    .server_url("http://sso.example.com/auth")
+    .ticket_timeout(300)
+    .allow_cross_domain(true)
+    .add_allowed_origin("http://app1.example.com".to_string())
+    .build();
+
+// 用户登录流程
+let ticket = sso_server.login(
+    "user_123".to_string(),
+    "http://app1.example.com".to_string(),
+).await?;
+
+// 验证票据
+let login_id = sso_server.validate_ticket(
+    &ticket.ticket_id,
+    "http://app1.example.com",
+).await?;
+
+// 创建本地会话
+let token = client.login_by_ticket(login_id).await?;
+
+// 统一登出（所有应用）
+let clients = sso_server.logout("user_123").await?;
+for client_url in clients {
+    // 通知各客户端登出
+}
+```
+
+📖 **[SSO 完整指南](docs/SSO_GUIDE.md#中文)**
+
+运行 SSO 示例：
+```bash
+cargo run --example sso_example
+```
+
 ## 📚 框架集成示例
 
 ### Axum
@@ -634,6 +750,7 @@ warp::serve(routes)
 
 - **分布式系统**
   - [分布式 Session](docs/DISTRIBUTED_SESSION.md) - 跨服务 Session 共享（7 种语言）
+  - [SSO 单点登录](docs/SSO_GUIDE.md#中文) - 基于票据的 SSO 和统一登出（7 种语言）
 
 - **错误处理**
   - [错误参考](docs/ERROR_REFERENCE.md) - 完整的错误类型文档（7 种语言）
@@ -647,6 +764,7 @@ warp::serve(routes)
   - `oauth2_example.rs` - OAuth2 授权流程
   - `websocket_online_example.rs` - WebSocket 认证和在线用户管理
   - `distributed_session_example.rs` - 分布式 Session 管理
+  - `sso_example.rs` - SSO 单点登录和票据验证
 
 ### 多语言支持
 大部分文档支持 7 种语言：
@@ -657,6 +775,93 @@ warp::serve(routes)
 - 🇰🇭 ភាសាខ្មែរ（高棉语）
 - 🇲🇾 Bahasa Melayu（马来语）
 - 🇲🇲 မြန်မာဘာသာ（缅甸语）
+
+## 📋 版本历史
+
+### 版本 0.1.4（当前版本）
+
+**新增功能：**
+- 🎫 **SSO 单点登录**：完整的 SSO 实现，基于票据认证
+  - SSO Server 用于中央认证
+  - SSO Client 用于应用集成
+  - 票据生成、验证和过期机制
+  - 跨所有应用的统一登出
+  - 跨域支持，带域名白名单
+  - 服务 URL 匹配安全保护
+
+### 版本 0.1.3
+  
+**新增功能：**
+- 🌐 **WebSocket 认证**：安全的 WebSocket 连接认证
+  - 多种 Token 来源（header、query、自定义）
+  - WsAuthManager 用于连接管理
+  - 与事件系统集成
+- 👥 **在线用户管理**：实时用户状态跟踪
+  - OnlineManager 跟踪活跃用户
+  - 向在线用户推送消息
+  - 支持自定义消息类型
+- 🔄 **分布式 Session**：跨服务会话共享
+  - 服务间认证
+  - 分布式会话存储
+  - 服务凭证管理
+- 🎨 **事件系统增强**：改进的事件监听器注册
+  - Builder 模式集成事件监听器
+  - 同步注册（无需 `.await`）
+  - 自动初始化 StpUtil
+- 📚 **文档改进**：
+  - 主要功能支持 7 种语言
+  - 多语言合并文档格式
+  - 全面的代码注释（双语）
+  - 代码流程逻辑文档
+
+**改进：**
+- 通过插件重新导出简化导入
+- 通过 Builder 模式实现一行初始化
+- 使用集中式错误定义改进错误处理
+- 增强 API 文档
+
+### 版本 0.1.2
+
+**新增功能：**
+- 🔑 **JWT 支持**：完整的 JWT 实现
+  - 8 种算法（HS256/384/512, RS256/384/512, ES256/384）
+  - 自定义声明支持
+  - Token 刷新机制
+- 🔒 **安全特性**：
+  - Nonce 管理器防止重放攻击
+  - Refresh Token 刷新机制
+- 🌐 **OAuth2 支持**：完整的 OAuth2 授权码模式
+  - 客户端注册和管理
+  - 授权码生成和交换
+  - 访问令牌和刷新令牌处理
+  - Token 撤销
+- 🎨 **新 Token 风格**：Hash、Timestamp、Tik 风格
+- 🎧 **事件监听系统**：监听认证事件
+  - Login、Logout、KickOut 事件
+  - 自定义监听器支持
+  - 内置 LoggingListener
+
+**改进：**
+- 错误处理重构为集中式 `SaTokenError`
+- 多语言错误文档
+- 增强的权限和角色检查
+
+### 版本 0.1.1
+
+**新增功能：**
+- 🚀 **多框架支持**：Axum、Actix-web、Poem、Rocket、Warp
+- 🔐 **核心认证**：登录、登出、Token 验证
+- 🛡️ **授权**：基于权限和角色的访问控制
+- 💾 **存储后端**：内存和 Redis 存储
+- 🎯 **过程宏**：`#[sa_check_login]`、`#[sa_check_permission]`、`#[sa_check_role]`
+- 📦 **灵活架构**：核心库与框架适配器分离
+
+**核心组件：**
+- `SaTokenManager`：Token 和会话管理
+- `StpUtil`：简化的工具 API
+- 多种 Token 生成风格（UUID、Random32/64/128）
+- Session 管理
+- 存储抽象层
 
 ## 🔧 高级用法
 

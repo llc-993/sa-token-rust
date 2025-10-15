@@ -3,25 +3,42 @@
 //! JWT (JSON Web Token) 使用示例
 //! 
 //! 演示 sa-token 的完整 JWT 功能
+//!
+//! ## 导入方式
+//!
+//! ### 方式1: 独立使用核心库（本示例）
+//! ```ignore
+//! use sa_token_core::{JwtManager, JwtClaims, JwtAlgorithm, ...};
+//! ```
+//!
+//! ### 方式2: 使用 Web 框架插件（推荐）
+//! 如果你在 Web 项目中使用，只需一行导入：
+//! ```toml
+//! [dependencies]
+//! sa-token-plugin-axum = "0.1.3"  // 默认包含所有功能
+//! ```
+//! ```ignore
+//! use sa_token_plugin_axum::*;  // JWT 相关类型已重新导出！
+//! ```
 
 use std::sync::Arc;
 use sa_token_core::{
     SaTokenManager, SaTokenConfig, StpUtil,
     JwtManager, JwtClaims, JwtAlgorithm,
+    config::TokenStyle,
 };
 use sa_token_storage_memory::MemoryStorage;
-use sa_token_core::config::TokenStyle;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("========================================");
-    println!("sa-token JWT 功能示例");
+    println!("sa-token JWT 功能示例 | sa-token JWT Features Example");
     println!("========================================\n");
     
     // ========================================
-    // 示例 1: 使用独立的 JWT Manager
+    // 示例 1: 使用独立的 JWT Manager | Example 1: Use JWT Manager Independently
     // ========================================
-    println!(">>> 示例 1: 独立使用 JWT Manager\n");
+    println!(">>> 示例 1: 独立使用 JWT Manager | Example 1: Use JWT Manager Independently\n");
     
     // 创建 JWT 管理器
     let jwt_manager = JwtManager::new("my-secret-key-123456")
@@ -60,10 +77,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n========================================");
     println!(">>> 示例 2: 在 sa-token 中使用 JWT Token Style\n");
     
-    // 创建使用 JWT Token Style 的配置
+    // 创建使用 JWT Token Style 的配置 | Create config with JWT Token Style
     let storage = Arc::new(MemoryStorage::new());
     let config = SaTokenConfig::builder()
-        .timeout(7200) // 2小时
+        .timeout(7200) // 2小时 | 2 hours
         .token_style(TokenStyle::Jwt)
         .jwt_secret_key("my-super-secret-key-123456")
         .jwt_algorithm("HS256")
@@ -74,26 +91,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manager = SaTokenManager::new(storage, config);
     StpUtil::init_manager(manager.clone());
     
-    println!("配置信息:");
+    println!("配置信息 | Configuration:");
     println!("  - Token Style: JWT");
-    println!("  - 算法: HS256");
-    println!("  - 签发者: sa-token-rust");
-    println!("  - 受众: mobile-app\n");
+    println!("  - 算法 | Algorithm: HS256");
+    println!("  - 签发者 | Issuer: sa-token-rust");
+    println!("  - 受众 | Audience: mobile-app\n");
     
-    // 登录生成 JWT Token
+    // 登录生成 JWT Token | Login to generate JWT Token
     let token = StpUtil::login("user_10087").await?;
-    println!("登录成功，生成的 JWT Token:");
+    println!("登录成功，生成的 JWT Token | Login successful, generated JWT Token:");
     println!("{}\n", token.as_str());
     
-    // 验证 Token
+    // 验证 Token | Validate Token
     let is_valid = StpUtil::is_login(&token).await;
-    println!("Token 验证结果: {}\n", if is_valid { "✓ 有效" } else { "✗ 无效" });
+    println!("Token 验证结果 | Token Validation Result: {}\n", if is_valid { "✓ 有效 | Valid" } else { "✗ 无效 | Invalid" });
     
     // ========================================
-    // 示例 3: JWT Token 刷新
+    // 示例 3: JWT Token 刷新 | Example 3: JWT Token Refresh
     // ========================================
     println!("\n========================================");
-    println!(">>> 示例 3: JWT Token 刷新\n");
+    println!(">>> 示例 3: JWT Token 刷新 | Example 3: JWT Token Refresh\n");
     
     let jwt_manager = JwtManager::new("refresh-secret-key");
     

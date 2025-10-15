@@ -3,34 +3,57 @@
 //! Token 风格示例
 //!
 //! 演示所有可用的 Token 生成风格
+//!
+//! ## 导入方式
+//!
+//! ### 方式1: 独立使用核心库（本示例）
+//! ```ignore
+//! use sa_token_core::config::{SaTokenConfig, TokenStyle};
+//! use sa_token_core::token::TokenGenerator;
+//! ```
+//!
+//! ### 方式2: 使用 Web 框架插件（推荐）
+//! ```toml
+//! [dependencies]
+//! sa-token-plugin-axum = "0.1.3"
+//! ```
+//! ```ignore
+//! use sa_token_plugin_axum::*;  // TokenStyle 已重新导出！
+//! ```
 
-use sa_token_core::config::{SaTokenConfig, TokenStyle};
-use sa_token_core::token::TokenGenerator;
+use sa_token_core::{
+    config::{SaTokenConfig, TokenStyle},
+    token::TokenGenerator,
+};
 
 fn main() {
     println!("========================================");
-    println!("sa-token Token 风格示例");
+    println!("sa-token Token 风格示例 | sa-token Token Styles Example");
     println!("========================================\n");
     
     let test_login_id = "user_12345";
     
-    // 1. UUID 风格
-    println!("1. UUID 风格:");
+    // ========================================
+    // 1. UUID 风格 | 1. UUID Style
+    // ========================================
+    println!("1. UUID 风格 | UUID Style:");
     let token = TokenGenerator::generate_with_login_id(
         &SaTokenConfig { token_style: TokenStyle::Uuid, ..Default::default() },
         test_login_id
     );
     println!("   Token: {}", token.as_str());
-    println!("   长度: {} 字符\n", token.as_str().len());
+    println!("   长度 | Length: {} 字符 | characters\n", token.as_str().len());
     
-    // 2. Simple UUID 风格
-    println!("2. Simple UUID 风格（无横杠）:");
+    // ========================================
+    // 2. Simple UUID 风格 | 2. Simple UUID Style
+    // ========================================
+    println!("2. Simple UUID 风格（无横杠）| Simple UUID Style (no hyphens):");
     let token = TokenGenerator::generate_with_login_id(
         &SaTokenConfig { token_style: TokenStyle::SimpleUuid, ..Default::default() },
         test_login_id
     );
     println!("   Token: {}", token.as_str());
-    println!("   长度: {} 字符\n", token.as_str().len());
+    println!("   长度 | Length: {} 字符 | characters\n", token.as_str().len());
     
     // 3. Random32 风格
     println!("3. Random32 风格:");

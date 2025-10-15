@@ -9,14 +9,32 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Actix-web framework integration for sa-token-rust"
+description = "Actix-web framework integration for sa-token-rust - All-in-one package"
 
 [dependencies]
-sa-token-core = { version = "0.1.3", path = "../sa-token-core" }
-sa-token-adapter = { version = "0.1.3", path = "../sa-token-adapter" }
+# 核心依赖（重新导出给用户）
+sa-token-core = { version = "0.1.4", path = "../sa-token-core" }
+sa-token-adapter = { version = "0.1.4", path = "../sa-token-adapter" }
+sa-token-macro = { version = "0.1.4", path = "../sa-token-macro" }
+
+# 存储实现（可选，通过 feature 控制）
+sa-token-storage-memory = { version = "0.1.4", path = "../sa-token-storage-memory", optional = true }
+sa-token-storage-redis = { version = "0.1.4", path = "../sa-token-storage-redis", optional = true }
+sa-token-storage-database = { version = "0.1.4", path = "../sa-token-storage-database", optional = true }
+
+# Actix-web 框架依赖
 tokio = { workspace = true }
 async-trait = { workspace = true }
 actix-web = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 urlencoding = "2.1"
+
+[features]
+default = ["memory"]
+# 存储后端选择
+memory = ["sa-token-storage-memory"]
+redis = ["sa-token-storage-redis"]
+database = ["sa-token-storage-database"]
+# 包含所有存储后端
+full = ["memory", "redis", "database"]

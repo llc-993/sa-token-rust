@@ -1,3 +1,23 @@
+//! WebSocket 认证与在线用户管理示例
+//!
+//! 演示 WebSocket 认证和在线用户追踪功能
+//!
+//! ## 导入方式
+//!
+//! ### 方式1: 独立使用核心库（本示例）
+//! ```ignore
+//! use sa_token_core::{WsAuthManager, OnlineManager, OnlineUser, ...};
+//! ```
+//!
+//! ### 方式2: 使用 Web 框架插件（推荐）
+//! ```toml
+//! [dependencies]
+//! sa-token-plugin-axum = "0.1.3"
+//! ```
+//! ```ignore
+//! use sa_token_plugin_axum::*;  // WebSocket 和在线用户功能已重新导出！
+//! ```
+
 use sa_token_core::{
     SaTokenManager, SaTokenConfig, WsAuthManager, OnlineManager, OnlineUser, 
     InMemoryPusher,
@@ -8,7 +28,9 @@ use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== WebSocket Authentication & Online User Management Example ===\n");
+    println!("========================================");
+    println!("WebSocket 认证与在线用户管理示例 | WebSocket Authentication & Online User Management Example");
+    println!("========================================\n");
 
     let config = SaTokenConfig::default();
     let storage = Arc::new(MemoryStorage::new());

@@ -240,7 +240,7 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::RwLock;
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 
@@ -364,42 +364,106 @@ impl SaTokenEvent {
     }
 }
 
-/// 事件监听器 trait
+/// 事件监听器 trait | Event Listener Trait
 /// 
 /// 实现此 trait 来自定义事件处理逻辑
+/// Implement this trait to customize event handling logic
+/// 
+/// # 使用示例 | Usage Example
+/// 
+/// ```rust,ignore
+/// use async_trait::async_trait;
+/// use sa_token_core::SaTokenListener;
+/// 
+/// struct MyListener;
+/// 
+/// #[async_trait]
+/// impl SaTokenListener for MyListener {
+///     async fn on_login(&self, login_id: &str, token: &str, login_type: &str) {
+///         // 自定义登录处理 | Custom login handling
+///         println!("User {} logged in", login_id);
+///     }
+/// }
+/// ```
 #[async_trait]
 pub trait SaTokenListener: Send + Sync {
-    /// 登录事件
+    /// 登录事件 | Login Event
+    /// 
+    /// 当用户成功登录时触发 | Triggered when user successfully logs in
+    /// 
+    /// # 参数 | Parameters
+    /// - `login_id`: 登录 ID | Login ID
+    /// - `token`: Token 值 | Token value
+    /// - `login_type`: 登录类型（如 "web", "websocket"）| Login type (e.g., "web", "websocket")
     async fn on_login(&self, login_id: &str, token: &str, login_type: &str) {
         let _ = (login_id, token, login_type);
     }
 
-    /// 登出事件
+    /// 登出事件 | Logout Event
+    /// 
+    /// 当用户主动登出时触发 | Triggered when user actively logs out
+    /// 
+    /// # 参数 | Parameters
+    /// - `login_id`: 登录 ID | Login ID
+    /// - `token`: Token 值 | Token value
+    /// - `login_type`: 登录类型 | Login type
     async fn on_logout(&self, login_id: &str, token: &str, login_type: &str) {
         let _ = (login_id, token, login_type);
     }
 
-    /// 踢出下线事件
+    /// 踢出下线事件 | Kick Out Event
+    /// 
+    /// 当用户被强制踢出下线时触发 | Triggered when user is forcefully kicked out
+    /// 
+    /// # 参数 | Parameters
+    /// - `login_id`: 登录 ID | Login ID
+    /// - `token`: Token 值 | Token value
+    /// - `login_type`: 登录类型 | Login type
     async fn on_kick_out(&self, login_id: &str, token: &str, login_type: &str) {
         let _ = (login_id, token, login_type);
     }
 
-    /// Token 续期事件
+    /// Token 续期事件 | Token Renewal Event
+    /// 
+    /// 当 Token 有效期被延长时触发 | Triggered when token validity is extended
+    /// 
+    /// # 参数 | Parameters
+    /// - `login_id`: 登录 ID | Login ID
+    /// - `token`: Token 值 | Token value
+    /// - `login_type`: 登录类型 | Login type
     async fn on_renew_timeout(&self, login_id: &str, token: &str, login_type: &str) {
         let _ = (login_id, token, login_type);
     }
 
-    /// 被顶下线事件
+    /// 被顶下线事件 | Replaced Event
+    /// 
+    /// 当用户在其他设备登录导致当前设备被顶下线时触发
+    /// Triggered when user logs in on another device and current device is replaced
+    /// 
+    /// # 参数 | Parameters
+    /// - `login_id`: 登录 ID | Login ID
+    /// - `token`: Token 值 | Token value
+    /// - `login_type`: 登录类型 | Login type
     async fn on_replaced(&self, login_id: &str, token: &str, login_type: &str) {
         let _ = (login_id, token, login_type);
     }
 
-    /// 被封禁事件
+    /// 被封禁事件 | Banned Event
+    /// 
+    /// 当用户账号被封禁时触发 | Triggered when user account is banned
+    /// 
+    /// # 参数 | Parameters
+    /// - `login_id`: 登录 ID | Login ID
+    /// - `login_type`: 登录类型 | Login type
     async fn on_banned(&self, login_id: &str, login_type: &str) {
         let _ = (login_id, login_type);
     }
 
     /// 通用事件处理（所有事件都会触发此方法）
+    /// Generic Event Handler (triggered by all events)
+    /// 
+    /// # 参数 | Parameters
+    /// - `event`: 事件对象 | Event object
     async fn on_event(&self, event: &SaTokenEvent) {
         let _ = event;
     }
@@ -420,26 +484,41 @@ impl SaTokenEventBus {
     }
 
     /// 注册监听器
-    pub async fn register(&self, listener: Arc<dyn SaTokenListener>) {
-        let mut listeners = self.listeners.write().await;
+    /// Register a listener
+    pub fn register(&self, listener: Arc<dyn SaTokenListener>) {
+        let mut listeners = self.listeners.write().unwrap();
         listeners.push(listener);
+    }
+    
+    /// 异步注册监听器（为了保持 API 兼容性）
+    /// Register a listener asynchronously (for API compatibility)
+    pub async fn register_async(&self, listener: Arc<dyn SaTokenListener>) {
+        self.register(listener);
     }
 
     /// 移除所有监听器
-    pub async fn clear(&self) {
-        let mut listeners = self.listeners.write().await;
+    /// Clear all listeners
+    pub fn clear(&self) {
+        let mut listeners = self.listeners.write().unwrap();
         listeners.clear();
     }
 
     /// 获取监听器数量
-    pub async fn listener_count(&self) -> usize {
-        let listeners = self.listeners.read().await;
+    /// Get listener count
+    pub fn listener_count(&self) -> usize {
+        let listeners = self.listeners.read().unwrap();
         listeners.len()
     }
 
     /// 发布事件
+    /// Publish an event to all listeners
     pub async fn publish(&self, event: SaTokenEvent) {
-        let listeners = self.listeners.read().await;
+        // 克隆监听器列表以避免持有锁时异步等待
+        // Clone listener list to avoid holding lock during async operations
+        let listeners = {
+            let guard = self.listeners.read().unwrap();
+            guard.clone()
+        };
         
         for listener in listeners.iter() {
             // 触发通用事件处理

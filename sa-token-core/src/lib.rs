@@ -33,6 +33,7 @@ pub mod oauth2;
 pub mod ws;
 pub mod online;
 pub mod distributed;
+pub mod sso;
 
 mod error;
 mod manager;
@@ -59,4 +60,7 @@ pub use online::{OnlineManager, OnlineUser, PushMessage, MessageType, MessagePus
 pub use distributed::{
     DistributedSessionManager, DistributedSession, DistributedSessionStorage,
     ServiceCredential, InMemoryDistributedStorage
+};
+pub use sso::{
+    SsoServer, SsoClient, SsoManager, SsoTicket, SsoSession, SsoConfig
 };

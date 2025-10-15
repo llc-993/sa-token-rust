@@ -103,8 +103,8 @@ impl StpUtil {
     /// ```rust,ignore
     /// StpUtil::register_listener(Arc::new(MyListener)).await;
     /// ```
-    pub async fn register_listener(listener: Arc<dyn SaTokenListener>) {
-        Self::event_bus().register(listener).await;
+    pub fn register_listener(listener: Arc<dyn SaTokenListener>) {
+        Self::event_bus().register(listener);
     }
     
     // ==================== 登录相关 ====================

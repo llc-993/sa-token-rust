@@ -37,17 +37,35 @@ impl SaTokenListener for MyListener {
 
 ### 2. Register Listener
 
+#### ⭐ Recommended: Register via Builder Pattern
+
+```rust
+use sa_token_core::SaTokenConfig;
+use sa_token_storage_memory::MemoryStorage;
+use std::sync::Arc;
+
+// One-line initialization: create manager + register listeners + initialize StpUtil!
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .timeout(7200)
+    .register_listener(Arc::new(MyListener))  // Register listener here!
+    .register_listener(Arc::new(AnotherListener))  // Support multiple listeners!
+    .build();  // Auto-complete all initialization!
+
+// StpUtil is ready to use immediately!
+```
+
+#### Alternative: Manual Registration
+
 ```rust
 use sa_token_core::{SaTokenManager, StpUtil};
-use std::sync::Arc;
 
 // Method 1: Register via Manager
 let manager = SaTokenManager::new(storage, config);
-manager.event_bus().register(Arc::new(MyListener)).await;
+manager.event_bus().register(Arc::new(MyListener));  // No .await needed!
 
-// Method 2: Register via StpUtil
-StpUtil::init_manager(manager);
-StpUtil::register_listener(Arc::new(MyListener)).await;
+// Method 2: Register via StpUtil (after manager is created)
+StpUtil::register_listener(Arc::new(MyListener));  // No .await needed!
 ```
 
 ### 3. Use Built-in Logging Listener
@@ -55,7 +73,14 @@ StpUtil::register_listener(Arc::new(MyListener)).await;
 ```rust
 use sa_token_core::LoggingListener;
 
-manager.event_bus().register(Arc::new(LoggingListener)).await;
+// Via Builder
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .register_listener(Arc::new(LoggingListener))
+    .build();
+
+// Or via Manager
+manager.event_bus().register(Arc::new(LoggingListener));
 ```
 
 ### 4. Automatic Event Triggering
@@ -75,12 +100,20 @@ StpUtil::kick_out("user_123").await?;
 
 ## Supported Event Types
 
-- **Login**: Login event
-- **Logout**: Logout event
-- **KickOut**: Kick-out event
-- **RenewTimeout**: Token renewal event
-- **Replaced**: Replaced event
-- **Banned**: Banned event
+- **Login**: Login event (triggered by `login()`, including WebSocket login)
+- **Logout**: Logout event (triggered by `logout()`)
+- **KickOut**: Kick-out event (triggered by `kick_out()`)
+- **RenewTimeout**: Token renewal event (triggered by `renew_timeout()`)
+- **Replaced**: Replaced event (triggered when a user is replaced by another device)
+- **Banned**: Banned event (triggered when a user is banned)
+
+## Key Features
+
+✅ **Zero Configuration** - `build()` auto-initializes everything  
+✅ **Synchronous Registration** - No `.await` needed  
+✅ **Builder Pattern** - Clean and fluent API  
+✅ **Multiple Listeners** - Register as many as you need  
+✅ **Type Safe** - Compile-time checks  
 
 ## Run Example
 

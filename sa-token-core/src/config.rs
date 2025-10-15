@@ -6,6 +6,7 @@ use std::time::Duration;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use sa_token_adapter::storage::SaStorage;
+use crate::event::SaTokenListener;
 
 /// sa-token 配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,6 +151,7 @@ pub enum TokenStyle {
 pub struct SaTokenConfigBuilder {
     config: SaTokenConfig,
     storage: Option<Arc<dyn SaStorage>>,
+    listeners: Vec<Arc<dyn SaTokenListener>>,
 }
 
 impl Default for SaTokenConfigBuilder {
@@ -157,6 +159,7 @@ impl Default for SaTokenConfigBuilder {
         Self {
             config: SaTokenConfig::default(),
             storage: None,
+            listeners: Vec::new(),
         }
     }
 }
@@ -256,7 +259,39 @@ impl SaTokenConfigBuilder {
         self
     }
     
+    /// 注册事件监听器
+    /// 
+    /// 可以多次调用以注册多个监听器
+    /// 
+    /// # 示例
+    /// ```rust,ignore
+    /// use std::sync::Arc;
+    /// use sa_token_core::{SaTokenConfig, SaTokenListener};
+    /// 
+    /// struct MyListener;
+    /// impl SaTokenListener for MyListener { /* ... */ }
+    /// 
+    /// let manager = SaTokenConfig::builder()
+    ///     .storage(Arc::new(MemoryStorage::new()))
+    ///     .register_listener(Arc::new(MyListener))
+    ///     .build();
+    /// ```
+    pub fn register_listener(mut self, listener: Arc<dyn SaTokenListener>) -> Self {
+        self.listeners.push(listener);
+        self
+    }
+    
     /// 构建 SaTokenManager（需要先设置 storage）
+    /// 
+    /// 自动完成以下操作：
+    /// 1. 创建 SaTokenManager
+    /// 2. 注册所有事件监听器
+    /// 3. 初始化 StpUtil
+    /// 
+    /// Auto-complete the following operations:
+    /// 1. Create SaTokenManager
+    /// 2. Register all event listeners
+    /// 3. Initialize StpUtil
     /// 
     /// # Panics
     /// 如果未设置 storage，会 panic
@@ -267,14 +302,32 @@ impl SaTokenConfigBuilder {
     /// use sa_token_core::SaTokenConfig;
     /// use sa_token_storage_memory::MemoryStorage;
     /// 
-    /// let manager = SaTokenConfig::builder()
+    /// // 一行代码完成所有初始化！
+    /// // Complete all initialization in one line!
+    /// SaTokenConfig::builder()
     ///     .storage(Arc::new(MemoryStorage::new()))
     ///     .timeout(7200)
-    ///     .build();
+    ///     .register_listener(Arc::new(MyListener))
+    ///     .build();  // 自动初始化 StpUtil！
     /// ```
     pub fn build(self) -> crate::SaTokenManager {
         let storage = self.storage.expect("Storage must be set before building SaTokenManager. Use .storage() method.");
-        crate::SaTokenManager::new(storage, self.config)
+        let manager = crate::SaTokenManager::new(storage, self.config);
+        
+        // 同步注册所有监听器
+        // Register all listeners synchronously
+        if !self.listeners.is_empty() {
+            let event_bus = manager.event_bus();
+            for listener in self.listeners {
+                event_bus.register(listener);
+            }
+        }
+        
+        // 自动初始化 StpUtil
+        // Auto-initialize StpUtil
+        crate::StpUtil::init_manager(manager.clone());
+        
+        manager
     }
     
     /// 仅构建配置（不创建 Manager）

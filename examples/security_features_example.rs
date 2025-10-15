@@ -3,6 +3,22 @@
 //! 安全功能示例：防重放攻击和 Token 刷新
 //!
 //! 演示如何使用 Nonce 防止重放攻击和 Refresh Token 机制
+//!
+//! ## 导入方式
+//!
+//! ### 方式1: 独立使用核心库（本示例）
+//! ```ignore
+//! use sa_token_core::{NonceManager, RefreshTokenManager, ...};
+//! ```
+//!
+//! ### 方式2: 使用 Web 框架插件（推荐）
+//! ```toml
+//! [dependencies]
+//! sa-token-plugin-axum = "0.1.3"
+//! ```
+//! ```ignore
+//! use sa_token_plugin_axum::*;  // 安全功能已重新导出！
+//! ```
 
 use std::sync::Arc;
 use sa_token_core::{
@@ -14,15 +30,15 @@ use sa_token_storage_memory::MemoryStorage;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("========================================");
-    println!("sa-token 安全功能示例");
+    println!("sa-token 安全功能示例 | sa-token Security Features Example");
     println!("========================================\n");
     
     let storage = Arc::new(MemoryStorage::new());
     
     // ========================================
-    // 示例 1: Nonce 防重放攻击
+    // 示例 1: Nonce 防重放攻击 | Example 1: Nonce for Replay Attack Prevention
     // ========================================
-    println!(">>> 示例 1: 使用 Nonce 防止重放攻击\n");
+    println!(">>> 示例 1: 使用 Nonce 防止重放攻击 | Example 1: Use Nonce to Prevent Replay Attacks\n");
     
     let nonce_manager = NonceManager::new(storage.clone(), 60);
     

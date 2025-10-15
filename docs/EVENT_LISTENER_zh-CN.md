@@ -44,9 +44,27 @@ sa-token 支持以下事件类型：
 
 ### 1. 注册监听器
 
-有两种方式注册监听器：
+有三种方式注册监听器：
 
-#### 方式一：通过 SaTokenManager
+#### ⭐ 方式一：Builder 模式（推荐）
+
+```rust
+use sa_token_core::SaTokenConfig;
+use sa_token_storage_memory::MemoryStorage;
+use std::sync::Arc;
+
+// 一行代码完成初始化：创建 manager + 注册监听器 + 初始化 StpUtil！
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .timeout(7200)
+    .register_listener(Arc::new(LoggingListener))  // 在这里注册！
+    .register_listener(Arc::new(MyListener))  // 支持注册多个！
+    .build();  // 自动完成所有初始化！
+
+// StpUtil 立即可用！
+```
+
+#### 方式二：通过 SaTokenManager
 
 ```rust
 use sa_token_core::{SaTokenManager, LoggingListener};
@@ -55,23 +73,19 @@ use std::sync::Arc;
 // 创建管理器
 let manager = SaTokenManager::new(storage, config);
 
-// 注册监听器
+// 注册监听器（同步，不需要 .await！）
 manager.event_bus()
-    .register(Arc::new(LoggingListener))
-    .await;
+    .register(Arc::new(LoggingListener));
 ```
 
-#### 方式二：通过 StpUtil
+#### 方式三：通过 StpUtil
 
 ```rust
 use sa_token_core::{StpUtil, LoggingListener};
 use std::sync::Arc;
 
-// 初始化 StpUtil
-StpUtil::init_manager(manager);
-
-// 注册监听器
-StpUtil::register_listener(Arc::new(LoggingListener)).await;
+// 注册监听器（同步，不需要 .await！）
+StpUtil::register_listener(Arc::new(LoggingListener));
 ```
 
 ### 2. 自动触发事件
@@ -129,9 +143,24 @@ impl SaTokenListener for MyListener {
 
 ### 注册并使用
 
+#### 推荐：Builder 模式
+
 ```rust
-// 注册监听器
-StpUtil::register_listener(Arc::new(MyListener)).await;
+// 在初始化时注册监听器
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .register_listener(Arc::new(MyListener))
+    .build();
+
+// 正常使用 sa-token，事件会自动触发
+let token = StpUtil::login("user_123").await?;
+```
+
+#### 传统方式：手动注册
+
+```rust
+// 初始化后注册监听器（同步）
+StpUtil::register_listener(Arc::new(MyListener));
 
 // 正常使用 sa-token，事件会自动触发
 let token = StpUtil::login("user_123").await?;
@@ -147,8 +176,14 @@ let token = StpUtil::login("user_123").await?;
 use sa_token_core::LoggingListener;
 use std::sync::Arc;
 
-// 注册日志监听器
-StpUtil::register_listener(Arc::new(LoggingListener)).await;
+// 通过 Builder（推荐）
+SaTokenConfig::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .register_listener(Arc::new(LoggingListener))
+    .build();
+
+// 或手动注册（同步）
+StpUtil::register_listener(Arc::new(LoggingListener));
 ```
 
 输出示例：
@@ -273,44 +308,59 @@ impl SaTokenListener for WebSocketNotifyListener {
 ### 场景5：多监听器协作
 
 ```rust
-// 同时注册多个监听器
-async fn setup_listeners(manager: &SaTokenManager) {
+// 方式一：通过 Builder 注册（推荐）
+fn setup_listeners_builder() -> SaTokenManager {
+    SaTokenConfig::builder()
+        .storage(Arc::new(MemoryStorage::new()))
+        .register_listener(Arc::new(LoggingListener))
+        .register_listener(Arc::new(LoginLogListener { 
+            db_pool: Arc::clone(&db_pool) 
+        }))
+        .register_listener(Arc::new(SecurityMonitorListener { 
+            alert_service: Arc::clone(&alert_service) 
+        }))
+        .register_listener(Arc::new(StatisticsListener { 
+            redis: Arc::clone(&redis_client) 
+        }))
+        .register_listener(Arc::new(WebSocketNotifyListener { 
+            ws_manager: Arc::clone(&ws_manager) 
+        }))
+        .build()  // 返回完全初始化的 manager！
+}
+
+// 方式二：手动注册（同步，不需要 async！）
+fn setup_listeners_manual(manager: &SaTokenManager) {
     // 日志记录
     manager.event_bus()
-        .register(Arc::new(LoggingListener))
-        .await;
+        .register(Arc::new(LoggingListener));
     
     // 数据库记录
     let db_listener = LoginLogListener {
         db_pool: Arc::clone(&db_pool),
     };
     manager.event_bus()
-        .register(Arc::new(db_listener))
-        .await;
+        .register(Arc::new(db_listener));
     
     // 安全监控
     let security_listener = SecurityMonitorListener {
         alert_service: Arc::clone(&alert_service),
     };
     manager.event_bus()
-        .register(Arc::new(security_listener))
-        .await;
+        .register(Arc::new(security_listener));
     
     // 实时统计
     let stats_listener = StatisticsListener {
         redis: Arc::clone(&redis_client),
     };
     manager.event_bus()
-        .register(Arc::new(stats_listener))
-        .await;
+        .register(Arc::new(stats_listener));
     
     // WebSocket 通知
     let ws_listener = WebSocketNotifyListener {
         ws_manager: Arc::clone(&ws_manager),
     };
     manager.event_bus()
-        .register(Arc::new(ws_listener))
-        .await;
+        .register(Arc::new(ws_listener));
 }
 ```
 
@@ -380,18 +430,18 @@ pub trait SaTokenListener: Send + Sync {
 // 创建事件总线
 let bus = SaTokenEventBus::new();
 
-// 注册监听器
-bus.register(Arc::new(MyListener)).await;
+// 注册监听器（同步）
+bus.register(Arc::new(MyListener));
 
-// 发布事件
+// 发布事件（异步）
 let event = SaTokenEvent::login("user_123", "token_abc");
 bus.publish(event).await;
 
-// 清空所有监听器
-bus.clear().await;
+// 清空所有监听器（同步）
+bus.clear();
 
-// 获取监听器数量
-let count = bus.listener_count().await;
+// 获取监听器数量（同步）
+let count = bus.listener_count();
 ```
 
 ### StpUtil 事件方法
@@ -400,8 +450,8 @@ let count = bus.listener_count().await;
 // 获取事件总线
 let bus = StpUtil::event_bus();
 
-// 注册监听器
-StpUtil::register_listener(Arc::new(MyListener)).await;
+// 注册监听器（同步，不需要 .await！）
+StpUtil::register_listener(Arc::new(MyListener));
 ```
 
 ## 注意事项

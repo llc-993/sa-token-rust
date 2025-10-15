@@ -3,17 +3,32 @@
 //! 事件监听示例
 //! 
 //! 演示如何使用 sa-token 的事件监听功能
+//!
+//! ## 导入方式
+//!
+//! ### 方式1: 独立使用核心库（本示例）
+//! ```ignore
+//! use sa_token_core::{SaTokenManager, SaTokenConfig, ...};
+//! use sa_token_storage_memory::MemoryStorage;
+//! ```
+//!
+//! ### 方式2: 使用 Web 框架插件（推荐）
+//! 如果你在 Web 项目中使用，只需一行导入：
+//! ```ignore
+//! use sa_token_plugin_axum::*;  // 或 actix-web, poem, rocket, warp
+//! // 所有功能已重新导出！
+//! ```
 
 use std::sync::Arc;
 use std::collections::HashMap;
 use async_trait::async_trait;
 use sa_token_core::{
-    SaTokenManager, SaTokenConfig, StpUtil,
+    SaTokenConfig, StpUtil,
     SaTokenListener, LoggingListener, WsAuthManager,
 };
 use sa_token_storage_memory::MemoryStorage;
 
-/// 自定义监听器 - 记录用户行为
+/// 自定义监听器 - 记录用户行为 | Custom Listener - Track User Behavior
 struct UserBehaviorListener {
     websocket_sessions: Arc<tokio::sync::RwLock<HashMap<String, usize>>>,
 }
@@ -30,68 +45,69 @@ impl UserBehaviorListener {
 impl SaTokenListener for UserBehaviorListener {
     async fn on_login(&self, login_id: &str, token: &str, login_type: &str) {
         if login_type == "websocket" {
-            // WebSocket 认证
+            // WebSocket 认证 | WebSocket Authentication
             let mut sessions = self.websocket_sessions.write().await;
             let count = sessions.entry(login_id.to_string()).or_insert(0);
             *count += 1;
             
-            println!("📝 [用户行为记录] WebSocket 连接");
-            println!("   - 用户ID: {}", login_id);
+            println!("📝 [用户行为记录 | User Behavior Log] WebSocket 连接 | WebSocket Connection");
+            println!("   - 用户ID | User ID: {}", login_id);
             println!("   - Token: {}...", &token[..20.min(token.len())]);
-            println!("   - 登录类型: 🌐 {}", login_type);
-            println!("   - 该用户的 WebSocket 连接数: {}", *count);
+            println!("   - 登录类型 | Login Type: 🌐 {}", login_type);
+            println!("   - 该用户的 WebSocket 连接数 | WebSocket Connections: {}", *count);
         } else {
-            // 普通登录
-            println!("📝 [用户行为记录] 用户登录");
-            println!("   - 用户ID: {}", login_id);
+            // 普通登录 | Regular Login
+            println!("📝 [用户行为记录 | User Behavior Log] 用户登录 | User Login");
+            println!("   - 用户ID | User ID: {}", login_id);
             println!("   - Token: {}...", &token[..20.min(token.len())]);
-            println!("   - 登录类型: {}", login_type);
+            println!("   - 登录类型 | Login Type: {}", login_type);
         }
         
         // 这里可以添加实际的业务逻辑，例如：
-        // - 记录登录日志到数据库
-        // - 更新用户最后登录时间
-        // - 发送登录通知
-        // - 统计登录次数
+        // Here you can add actual business logic, such as:
+        // - 记录登录日志到数据库 | Log to database
+        // - 更新用户最后登录时间 | Update last login time
+        // - 发送登录通知 | Send login notification
+        // - 统计登录次数 | Count login times
     }
 
     async fn on_logout(&self, login_id: &str, token: &str, login_type: &str) {
-        println!("📝 [用户行为记录] 用户登出");
-        println!("   - 用户ID: {}", login_id);
+        println!("📝 [用户行为记录 | User Behavior Log] 用户登出 | User Logout");
+        println!("   - 用户ID | User ID: {}", login_id);
         println!("   - Token: {}", token);
-        println!("   - 登录类型: {}", login_type);
+        println!("   - 登录类型 | Login Type: {}", login_type);
         
-        // 业务逻辑：
-        // - 记录登出日志
-        // - 清理用户缓存
-        // - 更新在线状态
+        // 业务逻辑 | Business Logic:
+        // - 记录登出日志 | Log logout event
+        // - 清理用户缓存 | Clear user cache
+        // - 更新在线状态 | Update online status
     }
 
     async fn on_kick_out(&self, login_id: &str, token: &str, login_type: &str) {
-        println!("⚠️  [用户行为记录] 用户被踢出下线");
-        println!("   - 用户ID: {}", login_id);
+        println!("⚠️  [用户行为记录 | User Behavior Log] 用户被踢出下线 | User Kicked Out");
+        println!("   - 用户ID | User ID: {}", login_id);
         println!("   - Token: {}", token);
-        println!("   - 登录类型: {}", login_type);
+        println!("   - 登录类型 | Login Type: {}", login_type);
         
-        // 业务逻辑：
-        // - 记录踢出日志
-        // - 发送通知给用户
-        // - 清理会话数据
+        // 业务逻辑 | Business Logic:
+        // - 记录踢出日志 | Log kick-out event
+        // - 发送通知给用户 | Send notification to user
+        // - 清理会话数据 | Clean session data
     }
 }
 
-/// 安全监控监听器 - 监控可疑行为
+/// 安全监控监听器 - 监控可疑行为 | Security Monitor Listener - Monitor Suspicious Behavior
 struct SecurityMonitorListener;
 
 #[async_trait]
 impl SaTokenListener for SecurityMonitorListener {
     async fn on_login(&self, login_id: &str, _token: &str, _login_type: &str) {
-        // 检查是否存在异常登录
-        println!("🔒 [安全监控] 检查登录安全性");
-        println!("   - 用户ID: {}", login_id);
+        // 检查是否存在异常登录 | Check for abnormal login
+        println!("🔒 [安全监控 | Security Monitor] 检查登录安全性 | Check Login Security");
+        println!("   - 用户ID | User ID: {}", login_id);
         
-        // 实际业务逻辑：
-        // - 检查登录IP是否在白名单
+        // 实际业务逻辑 | Actual Business Logic:
+        // - 检查登录IP是否在白名单 | Check if IP is whitelisted
         // - 检查登录频率是否异常
         // - 检查是否需要二次验证
     }
@@ -147,38 +163,32 @@ impl SaTokenListener for StatisticsListener {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== sa-token 事件监听示例 ===\n");
     
-    // 1. 创建存储和配置
-    let storage = Arc::new(MemoryStorage::new());
-    let config = SaTokenConfig::builder()
-        .timeout(7200) // 2小时过期
-        .build_config();
-    
-    // 2. 创建管理器
-    let manager = SaTokenManager::new(storage, config);
-    
-    // 3. 注册事件监听器
-    println!(">>> 注册事件监听器...\n");
-    
-    // 方式一：直接通过 manager 注册
-    manager.event_bus().register(Arc::new(LoggingListener)).await;
-    
+    // 创建监听器实例（需要在后续访问的监听器）
+    // Create listener instances (for listeners that need to be accessed later)
     let behavior_listener = Arc::new(UserBehaviorListener::new());
-    let behavior_listener_clone: Arc<dyn SaTokenListener> = behavior_listener.clone();
-    manager.event_bus().register(behavior_listener_clone).await;
-    
-    manager.event_bus().register(Arc::new(SecurityMonitorListener)).await;
-    
     let stats_listener = Arc::new(StatisticsListener::new());
-    let stats_listener_clone: Arc<dyn SaTokenListener> = stats_listener.clone();
-    manager.event_bus().register(stats_listener_clone).await;
     
-    println!("✅ 已注册 4 个监听器\n");
+    println!(">>> 使用 Builder 模式注册事件监听器...\n");
     
-    // 4. 初始化 StpUtil
-    StpUtil::init_manager(manager.clone());
+    // 使用 Builder 模式一次性完成所有配置！
+    // Use Builder pattern to complete all configuration at once!
+    let manager = SaTokenConfig::builder()
+        .timeout(7200)  // 2小时过期 | 2 hours expiration
+        .storage(Arc::new(MemoryStorage::new()))
+        .register_listener(Arc::new(LoggingListener))  // 日志监听器 | Logging listener
+        .register_listener(behavior_listener.clone() as Arc<dyn SaTokenListener>)  // 行为监听器 | Behavior listener
+        .register_listener(Arc::new(SecurityMonitorListener))  // 安全监听器 | Security listener
+        .register_listener(stats_listener.clone() as Arc<dyn SaTokenListener>)  // 统计监听器 | Statistics listener
+        .build();  // 自动完成：创建 Manager + 注册监听器 + 初始化 StpUtil！
     
-    // 方式二：通过 StpUtil 注册（如果还有其他监听器）
-    // StpUtil::register_listener(Arc::new(AnotherListener)).await;
+    // 注：虽然 build() 已经自动初始化了 StpUtil，但我们保留 manager 变量用于后续的 WebSocket 测试
+    // Note: Although build() has automatically initialized StpUtil, we keep the manager variable for later WebSocket tests
+    
+    println!("✅ 已注册 4 个监听器（自动初始化完成！）\n");
+    
+    // 注：也可以在 build() 后手动注册更多监听器
+    // Note: You can also manually register more listeners after build()
+    // StpUtil::event_bus().register(Arc::new(AnotherListener));
     
     // 5. 测试登录事件
     println!("\n========================================");

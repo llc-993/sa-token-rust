@@ -1,3 +1,23 @@
+//! OAuth2 授权码模式示例
+//!
+//! 演示完整的 OAuth2 授权流程
+//!
+//! ## 导入方式
+//!
+//! ### 方式1: 独立使用核心库（本示例）
+//! ```ignore
+//! use sa_token_core::{OAuth2Manager, OAuth2Client};
+//! ```
+//!
+//! ### 方式2: 使用 Web 框架插件（推荐）
+//! ```toml
+//! [dependencies]
+//! sa-token-plugin-axum = "0.1.3"
+//! ```
+//! ```ignore
+//! use sa_token_plugin_axum::*;  // OAuth2 相关类型已重新导出！
+//! ```
+
 use std::sync::Arc;
 use sa_token_core::{OAuth2Manager, OAuth2Client};
 use sa_token_storage_memory::MemoryStorage;
@@ -5,14 +25,14 @@ use sa_token_storage_memory::MemoryStorage;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("========================================");
-    println!("OAuth2 授权码模式示例");
+    println!("OAuth2 授权码模式示例 | OAuth2 Authorization Code Flow Example");
     println!("========================================\n");
     
     let storage = Arc::new(MemoryStorage::new());
     let oauth2 = OAuth2Manager::new(storage)
         .with_ttl(600, 3600, 2592000);
     
-    println!(">>> 步骤 1: 注册 OAuth2 客户端\n");
+    println!(">>> 步骤 1: 注册 OAuth2 客户端 | Step 1: Register OAuth2 Client\n");
     
     let client = OAuth2Client {
         client_id: "web_app_001".to_string(),

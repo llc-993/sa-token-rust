@@ -20,6 +20,7 @@ A lightweight, high-performance authentication and authorization framework for R
 - 🌐 **WebSocket Authentication**: Secure WebSocket connection authentication with multiple token sources
 - 👥 **Online User Management**: Real-time online status tracking and message push
 - 🔄 **Distributed Session**: Cross-service session sharing for microservices architecture
+- 🎫 **SSO Single Sign-On**: Complete SSO implementation with ticket-based authentication and unified logout
 
 ## 📦 Architecture
 
@@ -41,6 +42,7 @@ sa-token-rust/
 │   ├── ws.rs                   # WebSocket authentication
 │   ├── online.rs               # Online user management and real-time push
 │   ├── distributed.rs          # Distributed session management
+│   ├── sso.rs                  # SSO single sign-on (Server, Client, Ticket)
 │   ├── manager.rs              # SaTokenManager (core manager)
 │   ├── config.rs               # Configuration and builder
 │   └── util.rs                 # StpUtil (utility class)
@@ -61,7 +63,8 @@ sa-token-rust/
 │   ├── security_features_example.rs   # Nonce & Refresh token demo
 │   ├── oauth2_example.rs              # OAuth2 authorization flow demo
 │   ├── websocket_online_example.rs    # WebSocket auth & online user demo
-│   └── distributed_session_example.rs # Distributed session demo
+│   ├── distributed_session_example.rs # Distributed session demo
+│   └── sso_example.rs                 # SSO single sign-on demo
 └── docs/                       # Documentation
     ├── JWT_GUIDE.md / JWT_GUIDE_zh-CN.md
     ├── OAUTH2_GUIDE.md / OAUTH2_GUIDE_zh-CN.md
@@ -90,6 +93,7 @@ Core authentication and authorization logic:
 - WebSocket authentication ([WebSocket Guide](docs/WEBSOCKET_AUTH.md))
 - Online user management and real-time push ([Online User Guide](docs/ONLINE_USER_MANAGEMENT.md))
 - Distributed session for microservices ([Distributed Session Guide](docs/DISTRIBUTED_SESSION.md))
+- SSO single sign-on ([SSO Guide](docs/SSO_GUIDE.md#english))
 
 ### 2. **sa-token-adapter**
 Abstraction layer for framework integration:
@@ -116,32 +120,85 @@ All plugins provide:
 
 ## 🚀 Quick Start
 
-### 1. Add Dependencies
+### ⚡ Simplified Usage (Recommended)
+
+**New!** Import everything you need with a single dependency:
 
 ```toml
 [dependencies]
-sa-token-core = "0.1"
-sa-token-storage-memory = "0.1"
-sa-token-plugin-axum = "0.1"  # Choose your framework
+# All-in-one package - includes core, macros, and storage
+sa-token-plugin-axum = "0.1.4"  # Default: memory storage
 tokio = { version = "1", features = ["full"] }
-axum = "0.7"
+axum = "0.8"
 ```
+
+**One-line import:**
+```rust
+use sa_token_plugin_axum::*;  // ✨ Everything you need!
+
+// Now you can use:
+// - SaTokenManager, StpUtil
+// - MemoryStorage, RedisStorage (with features)
+// - All macros: #[sa_check_login], #[sa_check_permission]
+// - JWT, OAuth2, WebSocket, Online users, etc.
+```
+
+**Choose your storage backend with features:**
+```toml
+# Redis storage
+sa-token-plugin-axum = { version = "0.1.4", features = ["redis"] }
+
+# Multiple storage backends
+sa-token-plugin-axum = { version = "0.1.4", features = ["memory", "redis"] }
+
+# All storage backends
+sa-token-plugin-axum = { version = "0.1.4", features = ["full"] }
+```
+
+**Available features:**
+- `memory` (default): In-memory storage
+- `redis`: Redis storage  
+- `database`: Database storage
+- `full`: All storage backends
+
+**Available plugins:**
+- `sa-token-plugin-axum` - Axum framework
+- `sa-token-plugin-actix-web` - Actix-web framework
+- `sa-token-plugin-poem` - Poem framework
+- `sa-token-plugin-rocket` - Rocket framework
+- `sa-token-plugin-warp` - Warp framework
+
+---
+
+### 📦 Traditional Usage (Advanced)
+
+If you prefer fine-grained control, you can still import packages separately:
+
+```toml
+[dependencies]
+sa-token-core = "0.1.4"
+sa-token-storage-memory = "0.1.4"
+sa-token-plugin-axum = "0.1.4"
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+```
+
+---
 
 ### 2. Initialize sa-token
 
 #### Option A: Using Memory Storage (Development)
 
+**With simplified import:**
 ```rust
-use sa_token_core::StpUtil;
-use sa_token_plugin_axum::SaTokenState;
-use sa_token_storage_memory::MemoryStorage;
+use sa_token_plugin_axum::*;  // ✨ One-line import
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
     // Create state (StpUtil is automatically initialized)
     let state = SaTokenState::builder()
-        .storage(Arc::new(MemoryStorage::new()))
+        .storage(Arc::new(MemoryStorage::new()))  // Already re-exported!
         .token_name("Authorization")
         .timeout(86400)  // 24 hours
         .build();
@@ -153,11 +210,15 @@ async fn main() {
 
 #### Option B: Using Redis Storage (Production)
 
-**Method 1: Redis URL (Recommended for simple scenarios)**
+**Add Redis feature to your dependency:**
+```toml
+[dependencies]
+sa-token-plugin-axum = { version = "0.1.4", features = ["redis"] }
+```
 
+**With simplified import:**
 ```rust
-use sa_token_storage_redis::RedisStorage;
-use sa_token_plugin_axum::SaTokenState;
+use sa_token_plugin_axum::*;  // ✨ RedisStorage already included!
 use std::sync::Arc;
 
 #[tokio::main]
@@ -512,6 +573,61 @@ Run OAuth2 example:
 cargo run --example oauth2_example
 ```
 
+### 10. SSO Single Sign-On
+
+Complete SSO implementation with ticket-based authentication:
+
+```rust
+use sa_token_core::{SsoServer, SsoClient, SsoConfig};
+
+// Create SSO Server
+let sso_server = SsoServer::new(manager.clone())
+    .with_ticket_timeout(300);  // 5 minutes
+
+// Create SSO Client
+let client = SsoClient::new(
+    manager.clone(),
+    "http://sso.example.com/auth".to_string(),
+    "http://app1.example.com".to_string(),
+);
+
+// Configure SSO with cross-domain support
+let config = SsoConfig::builder()
+    .server_url("http://sso.example.com/auth")
+    .ticket_timeout(300)
+    .allow_cross_domain(true)
+    .add_allowed_origin("http://app1.example.com".to_string())
+    .build();
+
+// User login flow
+let ticket = sso_server.login(
+    "user_123".to_string(),
+    "http://app1.example.com".to_string(),
+).await?;
+
+// Validate ticket
+let login_id = sso_server.validate_ticket(
+    &ticket.ticket_id,
+    "http://app1.example.com",
+).await?;
+
+// Create local session
+let token = client.login_by_ticket(login_id).await?;
+
+// Unified logout (all applications)
+let clients = sso_server.logout("user_123").await?;
+for client_url in clients {
+    // Notify each client to logout
+}
+```
+
+📖 **[SSO Complete Guide](docs/SSO_GUIDE.md#english)**
+
+Run SSO example:
+```bash
+cargo run --example sso_example
+```
+
 📖 **[Full Event Listener Documentation](docs/EVENT_LISTENER.md)**
 
 ## 📚 Framework Integration Examples
@@ -636,6 +752,7 @@ warp::serve(routes)
 
 - **Distributed Systems**
   - [Distributed Session](docs/DISTRIBUTED_SESSION.md) - Cross-service session sharing (7 languages)
+  - [SSO Single Sign-On](docs/SSO_GUIDE.md#english) - Ticket-based SSO with unified logout (7 languages)
 
 - **Error Handling**
   - [Error Reference](docs/ERROR_REFERENCE.md) - Complete error types documentation (7 languages)
@@ -649,6 +766,7 @@ warp::serve(routes)
   - `oauth2_example.rs` - OAuth2 authorization flow
   - `websocket_online_example.rs` - WebSocket auth & online user management
   - `distributed_session_example.rs` - Distributed session management
+  - `sso_example.rs` - SSO single sign-on with ticket validation
 
 ### Language Support
 Most documentation is available in 7 languages:
@@ -659,6 +777,93 @@ Most documentation is available in 7 languages:
 - 🇰🇭 ភាសាខ្មែរ (Khmer)
 - 🇲🇾 Bahasa Melayu (Malay)
 - 🇲🇲 မြန်မာဘာသာ (Burmese)
+
+## 📋 Version History
+
+### Version 0.1.4 (Current)
+
+**New Features:**
+- 🎫 **SSO Single Sign-On**: Complete SSO implementation with ticket-based authentication
+  - SSO Server for centralized authentication
+  - SSO Client for application integration
+  - Ticket generation, validation, and expiration
+  - Unified logout across all applications
+  - Cross-domain support with origin whitelist
+  - Service URL matching for security
+
+### Version 0.1.2
+
+**New Features:**  
+- 🌐 **WebSocket Authentication**: Secure WebSocket connection authentication
+  - Multiple token sources (header, query, custom)
+  - WsAuthManager for connection management
+  - Integration with event system
+- 👥 **Online User Management**: Real-time user status tracking
+  - OnlineManager for tracking active users
+  - Message push to online users
+  - Custom message types support
+- 🔄 **Distributed Session**: Cross-service session sharing
+  - Service-to-service authentication
+  - Distributed session storage
+  - Service credential management
+- 🎨 **Enhanced Event System**: Improved event listener registration
+  - Builder pattern integration for event listeners
+  - Synchronous registration (no `.await` needed)
+  - Automatic StpUtil initialization
+- 📚 **Documentation Improvements**:
+  - 7-language support for major features
+  - Multi-language merged documentation format
+  - Comprehensive code comments (bilingual)
+  - Code flow logic documentation
+
+**Improvements:**
+- Simplified import with plugin re-exports
+- One-line initialization via builder pattern
+- Better error handling with centralized error definitions
+- Enhanced API documentation
+
+### Version 0.1.2
+
+**New Features:**
+- 🔑 **JWT Support**: Full JWT implementation
+  - 8 algorithms (HS256/384/512, RS256/384/512, ES256/384)
+  - Custom claims support
+  - Token refresh mechanism
+- 🔒 **Security Features**:
+  - Nonce manager for replay attack prevention
+  - Refresh token mechanism
+- 🌐 **OAuth2 Support**: Complete OAuth2 authorization code flow
+  - Client registration and management
+  - Authorization code generation and exchange
+  - Access token and refresh token handling
+  - Token revocation
+- 🎨 **New Token Styles**: Hash, Timestamp, Tik styles
+- 🎧 **Event Listener System**: Monitor authentication events
+  - Login, Logout, KickOut events
+  - Custom listener support
+  - Built-in LoggingListener
+
+**Improvements:**
+- Error handling refactored to use centralized `SaTokenError`
+- Multi-language error documentation
+- Enhanced permission and role checking
+
+### Version 0.1.1
+
+**New Features:**
+- 🚀 **Multi-framework Support**: Axum, Actix-web, Poem, Rocket, Warp
+- 🔐 **Core Authentication**: Login, logout, token validation
+- 🛡️ **Authorization**: Permission and role-based access control
+- 💾 **Storage Backends**: Memory and Redis storage
+- 🎯 **Procedural Macros**: `#[sa_check_login]`, `#[sa_check_permission]`, `#[sa_check_role]`
+- 📦 **Flexible Architecture**: Core library with framework adapters
+
+**Core Components:**
+- `SaTokenManager`: Token and session management
+- `StpUtil`: Simplified utility API
+- Multiple token generation styles (UUID, Random32/64/128)
+- Session management
+- Storage abstraction layer
 
 ## 🔧 Advanced Usage
 

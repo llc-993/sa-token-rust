@@ -1,3 +1,23 @@
+//! 分布式 Session 与服务间认证示例
+//!
+//! 演示微服务架构下的 Session 共享和服务认证
+//!
+//! ## 导入方式
+//!
+//! ### 方式1: 独立使用核心库（本示例）
+//! ```ignore
+//! use sa_token_core::{DistributedSessionManager, ServiceCredential, ...};
+//! ```
+//!
+//! ### 方式2: 使用 Web 框架插件（推荐）
+//! ```toml
+//! [dependencies]
+//! sa-token-plugin-axum = "0.1.3"
+//! ```
+//! ```ignore
+//! use sa_token_plugin_axum::*;  // 分布式 Session 功能已重新导出！
+//! ```
+
 use sa_token_core::{
     SaTokenManager, SaTokenConfig, DistributedSessionManager, 
     InMemoryDistributedStorage, ServiceCredential,
@@ -9,7 +29,9 @@ use chrono::Utc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Distributed Session & Service Authentication Example ===\n");
+    println!("========================================");
+    println!("分布式 Session 与服务间认证示例 | Distributed Session & Service Authentication Example");
+    println!("========================================\n");
 
     let config = SaTokenConfig::default();
     let storage = Arc::new(MemoryStorage::new());
