@@ -75,9 +75,11 @@ members = [
 # To build examples, use: 
 #   cargo build -p axum-full-example
 #   cargo build -p poem-full-example
+#   cargo build -p actix-web-example
 exclude = [
     "examples/axum-full-example",
     "examples/poem-full-example",
+    "examples/actix-web-example",
 ]
 
 resolver = "2"

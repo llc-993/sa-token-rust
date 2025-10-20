@@ -659,19 +659,35 @@ let app = Router::new()
 use actix_web::{App, HttpServer, web};
 use sa_token_plugin_actix_web::{SaTokenState, SaTokenMiddleware, LoginIdExtractor};
 
-let state = SaTokenState::builder()
-    .storage(Arc::new(MemoryStorage::new()))
-    .build();
+// Initialize Sa-Token
+let sa_token_manager = conf::init_sa_token(None)
+    .await
+    .expect("Sa-Token initialization failed");
+
+// Create Sa-Token state
+let sa_token_state = SaTokenState {
+    manager: sa_token_manager.clone(),
+};
+
+// Create data for application state
+let sa_token_data = web::Data::new(sa_token_state.clone());
 
 HttpServer::new(move || {
     App::new()
-        .app_data(state.clone())
-        .wrap(SaTokenMiddleware::new((*state).clone()))
-        .route("/user/info", web::get().to(user_info))
+        // Register middleware
+        .wrap(Logger::default())
+        .app_data(sa_token_data.clone()) // Inject Sa-Token into application state
+        .wrap(SaTokenMiddleware::new(sa_token_state.clone()))
+        
+        // Routes
+        .route("/api/login", web::post().to(login))
+        .route("/api/user/info", web::get().to(user_info))
 })
-.bind("127.0.0.1:8080")?
+.bind("0.0.0.0:3000")?
 .run()
 .await
+
+// For a complete example, see examples/actix-web-example/
 ```
 
 ### Poem
@@ -773,6 +789,9 @@ warp::serve(routes)
   - `websocket_online_example.rs` - WebSocket auth & online user management
   - `distributed_session_example.rs` - Distributed session management
   - `sso_example.rs` - SSO single sign-on with ticket validation
+  - `axum-full-example/` - Complete Axum framework integration example
+  - `actix-web-example/` - Complete Actix-web framework integration example
+  - `poem-full-example/` - Complete Poem framework integration example
 
 ### Language Support
 Most documentation is available in 7 languages:

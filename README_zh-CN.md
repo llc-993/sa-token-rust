@@ -657,19 +657,35 @@ let app = Router::new()
 use actix_web::{App, HttpServer, web};
 use sa_token_plugin_actix_web::{SaTokenState, SaTokenMiddleware, LoginIdExtractor};
 
-let state = SaTokenState::builder()
-    .storage(Arc::new(MemoryStorage::new()))
-    .build();
+// 初始化 Sa-Token
+let sa_token_manager = conf::init_sa_token(None)
+    .await
+    .expect("Sa-Token 初始化失败");
+
+// 创建 Sa-Token 状态
+let sa_token_state = SaTokenState {
+    manager: sa_token_manager.clone(),
+};
+
+// 创建应用状态数据
+let sa_token_data = web::Data::new(sa_token_state.clone());
 
 HttpServer::new(move || {
     App::new()
-        .app_data(state.clone())
-        .wrap(SaTokenMiddleware::new((*state).clone()))
-        .route("/user/info", web::get().to(user_info))
+        // 注册中间件
+        .wrap(Logger::default())
+        .app_data(sa_token_data.clone()) // 注入 Sa-Token 到应用状态
+        .wrap(SaTokenMiddleware::new(sa_token_state.clone()))
+        
+        // 路由
+        .route("/api/login", web::post().to(login))
+        .route("/api/user/info", web::get().to(user_info))
 })
-.bind("127.0.0.1:8080")?
+.bind("0.0.0.0:3000")?
 .run()
 .await
+
+// 完整示例请参考 examples/actix-web-example/
 ```
 
 ### Poem
@@ -771,6 +787,9 @@ warp::serve(routes)
   - `websocket_online_example.rs` - WebSocket 认证和在线用户管理
   - `distributed_session_example.rs` - 分布式 Session 管理
   - `sso_example.rs` - SSO 单点登录和票据验证
+  - `axum-full-example/` - 完整的 Axum 框架集成示例
+  - `actix-web-example/` - 完整的 Actix-web 框架集成示例
+  - `poem-full-example/` - 完整的 Poem 框架集成示例
 
 ### 多语言支持
 大部分文档支持 7 种语言：
