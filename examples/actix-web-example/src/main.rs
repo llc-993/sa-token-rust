@@ -94,7 +94,7 @@ async fn main() -> anyhow::Result<()> {
             .route("/api/login", web::post().to(login))
         // 都未实现具体逻辑
         // All endpoints below are commented out (not implemented)
-        /* .route("/", web::get().to(index))
+       .route("/", web::get().to(index))
          .route("/api/health", web::get().to(health_check))
 
          .route("/api/register", web::post().to(register))
@@ -127,7 +127,7 @@ async fn main() -> anyhow::Result<()> {
 
          // StpUtil 演示接口
          // StpUtil demo endpoint
-         .route("/api/demo/stp-util", web::get().to(demo_stp_util_api))*/
+         .route("/api/demo/stp-util", web::get().to(demo_stp_util_api))
     })
         .bind("0.0.0.0:3000")?
         .run()

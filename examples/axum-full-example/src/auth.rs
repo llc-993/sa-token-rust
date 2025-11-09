@@ -86,6 +86,24 @@ pub enum ApiError {
     InternalError(String),
 }
 
+impl From<sa_token_core::SaTokenError> for ApiError {
+    fn from(err: sa_token_core::SaTokenError) -> Self {
+        match err {
+            sa_token_core::SaTokenError::NotLogin => {
+                ApiError::Unauthorized("User not logged in".to_string())
+            }
+            sa_token_core::SaTokenError::PermissionDenied
+            | sa_token_core::SaTokenError::PermissionDeniedDetail(_) => {
+                ApiError::Forbidden("Permission denied".to_string())
+            }
+            sa_token_core::SaTokenError::RoleDenied(_) => {
+                ApiError::Forbidden("Role required".to_string())
+            }
+            _ => ApiError::InternalError(format!("Authentication error: {}", err)),
+        }
+    }
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {

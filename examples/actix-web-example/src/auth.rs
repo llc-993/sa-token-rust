@@ -102,6 +102,22 @@ pub enum ApiError {
     InternalError(String),
 }
 
+impl From<sa_token_core::SaTokenError> for ApiError {
+    fn from(err: sa_token_core::SaTokenError) -> Self {
+        match err {
+            sa_token_core::SaTokenError::NotLogin => {
+                ApiError::Unauthorized(err.message())
+            }
+            sa_token_core::SaTokenError::PermissionDenied
+            | sa_token_core::SaTokenError::PermissionDeniedDetail(_)
+            | sa_token_core::SaTokenError::RoleDenied(_) => {
+                ApiError::Forbidden(err.message())
+            }
+            _ => ApiError::InternalError(format!("Authentication error: {}", err)),
+        }
+    }
+}
+
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

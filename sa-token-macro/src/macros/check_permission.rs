@@ -71,7 +71,6 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
     
     let input = parse_macro_input!(item as ItemFn);
     
-    // 提取函数签名的各个部分
     let fn_name = &input.sig.ident;
     let fn_inputs = &input.sig.inputs;
     let fn_output = &input.sig.output;
@@ -82,20 +81,21 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
     let fn_generics = &input.sig.generics;
     let fn_where_clause = &input.sig.generics.where_clause;
     
-    // 生成带有元数据标记的函数
+    if fn_asyncness.is_none() {
+        return syn::Error::new_spanned(fn_name, "Macro requires async function")
+            .to_compile_error().into();
+    }
+    
+    let check_code = quote! {
+        let __login_id = sa_token_core::StpUtil::get_login_id_as_string()?;
+        sa_token_core::StpUtil::check_permission(&__login_id, #perm_value).await?;
+    };
+    
     let expanded: TokenStream2 = quote! {
-        // 保留原有属性
         #(#fn_attrs)*
-        // 添加元数据标记（供中间件识别）
         #[doc(hidden)]
-        #[cfg_attr(feature = "sa-token-metadata", sa_token_check = "permission")]
-        #[cfg_attr(feature = "sa-token-metadata", sa_token_permission = #perm_value)]
         #fn_vis #fn_asyncness fn #fn_name #fn_generics(#fn_inputs) #fn_output #fn_where_clause {
-            // 注意：
-            // - 权限检查逻辑在中间件中执行
-            // - 所需权限: #perm_value
-            // - 支持通配符匹配（如 admin:* 匹配 admin:read、admin:write）
-            
+            #check_code
             #fn_body
         }
     };

@@ -92,7 +92,7 @@ pub fn sa_ignore_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             // 为函数添加忽略标记
             quote! {
                 #[doc(hidden)]
-                #[cfg_attr(feature = "sa-token-metadata", sa_token_ignore = "true")]
+                // Ignore marker for middleware
                 #item_fn
             }
         }
@@ -100,14 +100,14 @@ pub fn sa_ignore_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             // 为结构体添加忽略标记
             quote! {
                 #[doc(hidden)]
-                #[cfg_attr(feature = "sa-token-metadata", sa_token_ignore = "true")]
+                // Ignore marker for middleware
                 #item_struct
             }
         }
         Item::Impl(item_impl) => {
             // 为impl块添加忽略标记
             quote! {
-                #[cfg_attr(feature = "sa-token-metadata", sa_token_ignore = "true")]
+                // Ignore marker for middleware
                 #item_impl
             }
         }

@@ -35,17 +35,24 @@ pub fn sa_check_role_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let fn_vis = &input.vis;
     let fn_asyncness = &input.sig.asyncness;
     let fn_generics = &input.sig.generics;
+    let fn_where_clause = &input.sig.generics.where_clause;
     let role_value = role.value();
+    
+    if fn_asyncness.is_none() {
+        return syn::Error::new_spanned(fn_name, "Macro requires async function")
+            .to_compile_error().into();
+    }
+    
+    let check_code = quote! {
+        let __login_id = sa_token_core::StpUtil::get_login_id_as_string()?;
+        sa_token_core::StpUtil::check_role(&__login_id, #role_value).await?;
+    };
     
     let expanded: TokenStream2 = quote! {
         #(#fn_attrs)*
         #[doc(hidden)]
-        #[cfg_attr(feature = "sa-token-metadata", sa_token_check = "role")]
-        #[cfg_attr(feature = "sa-token-metadata", sa_token_role = #role_value)]
-        #fn_vis #fn_asyncness fn #fn_name #fn_generics(#fn_inputs) #fn_output {
-            // 角色检查逻辑在中间件中执行
-            // 所需角色: #role_value
-            
+        #fn_vis #fn_asyncness fn #fn_name #fn_generics(#fn_inputs) #fn_output #fn_where_clause {
+            #check_code
             #fn_body
         }
     };

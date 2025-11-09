@@ -3,7 +3,7 @@
 //! 多权限检查宏（OR逻辑）
 
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{parse_macro_input, ItemFn, LitStr, Token, parse::Parser};
 
@@ -25,8 +25,15 @@ pub fn sa_check_permissions_or_impl(attr: TokenStream, item: TokenStream) -> Tok
     
     let parser = syn::punctuated::Punctuated::<LitStr, Token![,]>::parse_terminated;
     let permissions = parser.parse(attr).unwrap_or_default();
-    let perm_values: Vec<String> = permissions.iter().map(|p| p.value()).collect();
+    let perm_lits: Vec<LitStr> = permissions.iter().cloned().collect();
+    if perm_lits.is_empty() {
+        return syn::Error::new(Span::call_site(), "At least one permission is required")
+            .to_compile_error()
+            .into();
+    }
+    let perm_values: Vec<String> = perm_lits.iter().map(|p| p.value()).collect();
     let perm_str = perm_values.join(",");
+    let perm_desc = LitStr::new(&perm_values.join(" | "), Span::call_site());
     
     let fn_name = &input.sig.ident;
     let fn_inputs = &input.sig.inputs;
@@ -36,13 +43,26 @@ pub fn sa_check_permissions_or_impl(attr: TokenStream, item: TokenStream) -> Tok
     let fn_vis = &input.vis;
     let fn_asyncness = &input.sig.asyncness;
     let fn_generics = &input.sig.generics;
+    let fn_where_clause = &input.sig.generics.where_clause;
+    
+    if fn_asyncness.is_none() {
+        return syn::Error::new_spanned(fn_name, "Macro requires async function")
+            .to_compile_error()
+            .into();
+    }
+    
+    let check_code = quote! {
+        let __login_id = sa_token_core::StpUtil::get_login_id_as_string()?;
+        if !sa_token_core::StpUtil::has_permissions_or(&__login_id, &[#(#perm_lits),*]).await {
+            return Err(sa_token_core::SaTokenError::PermissionDeniedDetail(String::from(#perm_desc)).into());
+        }
+    };
     
     let expanded: TokenStream2 = quote! {
         #(#fn_attrs)*
         #[doc(hidden)]
-        #[cfg_attr(feature = "sa-token-metadata", sa_token_check = "permissions_or")]
-        #[cfg_attr(feature = "sa-token-metadata", sa_token_permissions = #perm_str)]
-        #fn_vis #fn_asyncness fn #fn_name #fn_generics(#fn_inputs) #fn_output {
+        #fn_vis #fn_asyncness fn #fn_name #fn_generics(#fn_inputs) #fn_output #fn_where_clause {
+            #check_code
             #fn_body
         }
     };

@@ -133,3 +133,76 @@ pub enum SaTokenError {
     #[error("Internal error: {0}")]
     InternalError(String),
 }
+
+impl SaTokenError {
+    /// Get the error message as a string
+    /// 
+    /// This method returns the English error message for the error.
+    /// The error messages are defined using the `#[error(...)]` attribute.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,ignore
+    /// let err = SaTokenError::NotLogin;
+    /// assert_eq!(err.message(), "User not logged in");
+    /// ```
+    pub fn message(&self) -> String {
+        self.to_string()
+    }
+    
+    /// Check if the error is an authentication error
+    /// 
+    /// Returns `true` for errors related to authentication (login/token validity)
+    pub fn is_auth_error(&self) -> bool {
+        matches!(
+            self,
+            Self::NotLogin 
+            | Self::TokenNotFound 
+            | Self::TokenExpired 
+            | Self::TokenInactive 
+            | Self::InvalidToken(_)
+        )
+    }
+    
+    /// Check if the error is an authorization error
+    /// 
+    /// Returns `true` for errors related to permissions or roles
+    pub fn is_authz_error(&self) -> bool {
+        matches!(
+            self,
+            Self::PermissionDenied 
+            | Self::PermissionDeniedDetail(_) 
+            | Self::RoleDenied(_)
+        )
+    }
+}
+
+/// Application-level error messages
+/// 
+/// These constants provide standard error messages for application-specific errors
+/// that are not part of SaTokenError.
+/// 
+/// # Examples
+/// 
+/// ```rust,ignore
+/// use sa_token_core::error::messages;
+/// 
+/// let err_msg = messages::INVALID_CREDENTIALS;
+/// return Err(ApiError::Unauthorized(err_msg.to_string()));
+/// ```
+pub mod messages {
+    /// Invalid username or password
+    pub const INVALID_CREDENTIALS: &str = "Invalid username or password";
+    
+    /// Login failed
+    pub const LOGIN_FAILED: &str = "Login failed";
+    
+    /// Authentication error
+    pub const AUTH_ERROR: &str = "Authentication error";
+    
+    /// Permission required
+    pub const PERMISSION_REQUIRED: &str = "Permission required";
+    
+    /// Role required
+    pub const ROLE_REQUIRED: &str = "Role required";
+}

@@ -1,48 +1,56 @@
 // Author: 金书记
 //
-//! 登录检查宏
+//! Login check macro
 //! 
-//! 提供编译时的登录检查标记，实际验证在运行时由中间件执行
+//! Provides compile-time login check that automatically inserts authentication verification
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{parse_macro_input, ItemFn};
 
-/// 检查登录状态的宏
+/// Login check macro
 /// 
-/// 使用此宏标注的函数会在执行前检查用户是否已登录。
+/// Functions annotated with this macro will check if the user is logged in before execution.
 /// 
-/// # 工作原理
+/// # Requirements
 /// 
-/// 1. 编译时：为函数添加元数据标记
-/// 2. 运行时：中间件读取标记并执行登录验证
-/// 3. 验证失败：返回 401 Unauthorized
+/// - Function must be async (`async fn`)
+/// - Function must return `Result<T, E>` where `E` implements `From<sa_token_core::SaTokenError>`
+/// - Must be used with framework middleware (e.g., Axum's SaTokenLayer) which extracts and validates tokens
 /// 
-/// # 示例
+/// # How it works
+/// 
+/// 1. Compile time: Inserts `StpUtil::check_login_current()?;` at the beginning of function body
+/// 2. Runtime: Executes login check, returns `SaTokenError::NotLogin` if not logged in
+/// 3. On failure: Error is propagated via `?` operator, framework converts to HTTP status code (typically 401)
+/// 
+/// # Examples
 /// 
 /// ```rust,ignore
 /// use axum::{response::Json, http::StatusCode};
 /// use sa_token_macro::sa_check_login;
 /// 
 /// #[sa_check_login]
-/// async fn user_dashboard() -> Json<serde_json::Value> {
-///     // 只有已登录用户可以访问
-///     Json(serde_json::json!({
+/// async fn user_dashboard() -> Result<Json<serde_json::Value>, StatusCode> {
+///     // If not logged in, check_login_current()? will return error
+///     // Only logged in users can reach here
+///     Ok(Json(serde_json::json!({
 ///         "message": "Welcome!"
-///     }))
+///     })))
 /// }
 /// ```
 /// 
-/// # 注意事项
+/// # Notes
 /// 
-/// - 必须配合框架中间件使用（如 Axum 的 SaTokenLayer）
-/// - 适用于 async 和同步函数
-/// - 支持泛型参数和生命周期
+/// - Must be used with framework middleware (e.g., Axum's SaTokenLayer) which sets up context
+/// - Only supports async functions
+/// - Function must return Result type for `?` operator to work
+/// - Supports generic parameters and lifetime annotations
 pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
     
-    // 提取函数签名的各个部分
+    // Extract function signature components
     let fn_name = &input.sig.ident;
     let fn_inputs = &input.sig.inputs;
     let fn_output = &input.sig.output;
@@ -53,19 +61,35 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
     let fn_generics = &input.sig.generics;
     let fn_where_clause = &input.sig.generics.where_clause;
     
-    // 生成带有元数据标记的函数
+    // Check if function is async
+    if fn_asyncness.is_none() {
+        return syn::Error::new_spanned(
+            fn_name,
+            "sa_check_login macro requires function to be async (async fn)"
+        ).to_compile_error().into();
+    }
+    
+    // Generate authentication check code
+    // Insert login check at the beginning of function body
+    let auth_check = quote! {
+        // Login check - automatically inserted by sa_check_login macro
+        // Returns SaTokenError::NotLogin if not logged in, error is propagated via ? operator
+        if !sa_token_core::StpUtil::is_login_current() {
+            return Err(sa_token_core::SaTokenError::NotLogin.into());
+        }
+    };
+    
+    // Generate expanded function
     let expanded: TokenStream2 = quote! {
-        // 保留原有属性
+        // Preserve original attributes
         #(#fn_attrs)*
-        // 添加元数据标记（供中间件识别）
+        // Add metadata marker (for middleware recognition)
         #[doc(hidden)]
-        #[cfg_attr(feature = "sa-token-metadata", sa_token_check = "login")]
         #fn_vis #fn_asyncness fn #fn_name #fn_generics(#fn_inputs) #fn_output #fn_where_clause {
-            // 注意：
-            // - 实际的认证逻辑在框架中间件中执行
-            // - 此宏仅添加编译时标记和文档
-            // - 中间件通过读取函数属性来决定是否验证
+            // Insert authentication check at beginning of function body
+            #auth_check
             
+            // Original function body
             #fn_body
         }
     };

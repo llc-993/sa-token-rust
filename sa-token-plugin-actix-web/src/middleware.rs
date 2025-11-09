@@ -12,7 +12,8 @@ use actix_web::{
 use crate::SaTokenState;
 use crate::adapter::ActixRequestAdapter;
 use sa_token_adapter::context::SaRequest;
-use sa_token_core::token::TokenValue;
+use sa_token_core::{token::TokenValue, SaTokenContext};
+use std::sync::Arc;
 
 /// sa-token 基础中间件 - 提取并验证 token
 pub struct SaTokenMiddleware {
@@ -67,8 +68,10 @@ where
         let state = self.state.clone();
         
         Box::pin(async move {
+            let mut ctx = SaTokenContext::new();
             // 提取 token
             if let Some(token_str) = extract_token_from_request(&req, &state) {
+                tracing::debug!("Sa-Token: extracted token from request: {}", token_str);
                 let token = TokenValue::new(token_str);
                 
                 // 验证 token
@@ -78,12 +81,19 @@ where
                     
                     // 获取并存储 login_id
                     if let Ok(token_info) = state.manager.get_token_info(&token).await {
-                        req.extensions_mut().insert(token_info.login_id.clone());
+                        let login_id = token_info.login_id.clone();
+                        req.extensions_mut().insert(login_id.clone());
+                        ctx.token = Some(token.clone());
+                        ctx.token_info = Some(Arc::new(token_info));
+                        ctx.login_id = Some(login_id);
                     }
                 }
             }
             
-            service.call(req).await
+            SaTokenContext::set_current(ctx);
+            let result = service.call(req).await;
+            SaTokenContext::clear();
+            result
         })
     }
 }
@@ -141,8 +151,10 @@ where
         let state = self.state.clone();
         
         Box::pin(async move {
+            let mut ctx = SaTokenContext::new();
             // 提取 token
             if let Some(token_str) = extract_token_from_request(&req, &state) {
+                tracing::debug!("Sa-Token(login-check): extracted token from request: {}", token_str);
                 let token = TokenValue::new(token_str);
                 
                 // 验证 token
@@ -151,10 +163,18 @@ where
                     req.extensions_mut().insert(token.clone());
                     
                     if let Ok(token_info) = state.manager.get_token_info(&token).await {
-                        req.extensions_mut().insert(token_info.login_id.clone());
+                        let login_id = token_info.login_id.clone();
+                        req.extensions_mut().insert(login_id.clone());
+                        ctx.token = Some(token.clone());
+                        ctx.token_info = Some(Arc::new(token_info));
+                        ctx.login_id = Some(login_id);
+                        
+                        // 设置上下文
+                        SaTokenContext::set_current(ctx);
+                        let result = service.call(req).await;
+                        SaTokenContext::clear();
+                        return result;
                     }
-                    
-                    return service.call(req).await;
                 }
             }
             

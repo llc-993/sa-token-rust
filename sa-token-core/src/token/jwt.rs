@@ -128,7 +128,7 @@ pub struct JwtClaims {
     pub device: Option<String>,
 
     /// Custom data | 自定义数据
-    #[serde(flatten)]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub extra: HashMap<String, Value>,
 }
 
@@ -210,6 +210,17 @@ impl JwtClaims {
     /// Get custom claim | 获取自定义声明
     pub fn get_claim(&self, key: &str) -> Option<&Value> {
         self.extra.get(key)
+    }
+    
+    /// Set all custom claims at once | 一次设置所有自定义声明
+    pub fn set_claims(&mut self, claims: HashMap<String, Value>) -> &mut Self {
+        self.extra = claims;
+        self
+    }
+    
+    /// Get all custom claims | 获取所有自定义声明
+    pub fn get_claims(&self) -> &HashMap<String, Value> {
+        &self.extra
     }
 
     /// Check if token is expired | 检查 token 是否过期

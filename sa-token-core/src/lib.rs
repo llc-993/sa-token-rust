@@ -35,7 +35,7 @@ pub mod online;
 pub mod distributed;
 pub mod sso;
 
-mod error;
+pub mod error;
 mod manager;
 
 pub use error::{SaTokenError, SaTokenResult};
