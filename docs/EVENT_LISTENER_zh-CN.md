@@ -452,6 +452,30 @@ let bus = StpUtil::event_bus();
 
 // 注册监听器（同步，不需要 .await！）
 StpUtil::register_listener(Arc::new(MyListener));
+
+// 一次注册多个监听器
+StpUtil::register_listeners(vec![
+    Arc::new(MyListener),
+    Arc::new(LoggingListener),
+    Arc::new(DatabaseListener),
+]);
+```
+
+### 使用 Builder 模式
+
+```rust
+// 创建带有监听器的状态
+let state = SaTokenState::builder()
+    .storage(Arc::new(MemoryStorage::new()))
+    .listener(Arc::new(MyListener))           // 添加单个监听器
+    .listeners(vec![                          // 添加多个监听器
+        Arc::new(LoggingListener),
+        Arc::new(DatabaseListener),
+    ])
+    .timeout(86400)
+    .build();
+
+// StpUtil 会自动初始化并注册监听器
 ```
 
 ## 注意事项

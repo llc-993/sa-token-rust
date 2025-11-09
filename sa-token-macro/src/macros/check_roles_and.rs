@@ -31,8 +31,7 @@ pub fn sa_check_roles_and_impl(attr: TokenStream, item: TokenStream) -> TokenStr
             .to_compile_error()
             .into();
     }
-    let role_values: Vec<String> = role_lits.iter().map(|r| r.value()).collect();
-    let role_str = role_values.join(",");
+    // 生成每个角色的检查代码，不需要存储角色值列表
     
     let fn_name = &input.sig.ident;
     let fn_inputs = &input.sig.inputs;

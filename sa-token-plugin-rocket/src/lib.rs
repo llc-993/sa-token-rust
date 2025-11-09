@@ -48,18 +48,20 @@
 pub mod middleware;
 pub mod extractor;
 pub mod adapter;
+pub mod layer;
 
 // ============================================================================
 // Rocket 框架集成（本插件特有）
 // ============================================================================
 pub use middleware::SaTokenFairing;
+pub use layer::SaTokenLayer;
 pub use extractor::{SaTokenGuard, OptionalSaTokenGuard, LoginIdGuard};
 pub use adapter::{RocketRequestAdapter, RocketResponseAdapter};
 
 // ============================================================================
 // 重新导出核心功能（sa-token-core）
 // ============================================================================
-pub use sa_token_core::{
+pub use sa_token_core::{self,
     // 核心管理器
     SaTokenManager, StpUtil,
     
@@ -100,12 +102,15 @@ pub use sa_token_core::{
     // 分布式会话
     DistributedSessionManager, DistributedSession, DistributedSessionStorage, 
     ServiceCredential, InMemoryDistributedStorage,
+    
+    // 模块
+    token, error
 };
 
 // ============================================================================
 // 重新导出适配器接口（sa-token-adapter）
 // ============================================================================
-pub use sa_token_adapter::{
+pub use sa_token_adapter::{self,
     storage::SaStorage,
     framework::FrameworkAdapter,
 };

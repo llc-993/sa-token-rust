@@ -63,6 +63,7 @@ where
             
             // 从请求中提取 token
             if let Some(token_str) = extract_token_from_request(&request, &state) {
+                tracing::debug!("Sa-Token: extracted token from request: {}", token_str);
                 let token = sa_token_core::token::TokenValue::new(token_str);
                 
                 // 验证 token 是否有效

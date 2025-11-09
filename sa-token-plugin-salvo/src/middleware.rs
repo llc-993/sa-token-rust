@@ -5,7 +5,6 @@
 
 use salvo::prelude::*;
 use sa_token_core::StpUtil;
-use std::sync::Arc;
 
 /// 中文 | English
 /// 认证中间件 - 验证用户登录状态 | Authentication middleware - verify user login status
@@ -20,11 +19,11 @@ use std::sync::Arc;
 ///     .push(Router::with_path("user").get(user_handler));
 /// ```
 pub fn auth_middleware() -> impl Handler {
-    AuthMiddleware
+    auth_middleware_handler
 }
 
 #[handler]
-async fn AuthMiddleware(req: &mut Request, res: &mut Response, depot: &mut Depot, ctrl: &mut FlowCtrl) {
+async fn auth_middleware_handler(req: &mut Request, res: &mut Response, depot: &mut Depot, ctrl: &mut FlowCtrl) {
     // 中文 | English
     // 从请求头中获取 token | Get token from request headers
     let token = req

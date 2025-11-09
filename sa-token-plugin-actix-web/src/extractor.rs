@@ -4,7 +4,7 @@
 
 use actix_web::{FromRequest, HttpRequest, HttpMessage, dev::Payload, error::ErrorUnauthorized};
 use std::future::{ready, Ready};
-use sa_token_core::token::TokenValue;
+use sa_token_core::{token::TokenValue, error::messages};
 
 /// Token 提取器 - 必须存在，否则返回错误
 pub struct SaTokenExtractor(pub TokenValue);
@@ -18,7 +18,7 @@ impl FromRequest for SaTokenExtractor {
             Some(token) => ready(Ok(SaTokenExtractor(token.clone()))),
             None => ready(Err(ErrorUnauthorized(serde_json::json!({
                 "code": 401,
-                "message": "未登录或 token 无效"
+                "message": messages::AUTH_ERROR
             })))),
         }
     }
@@ -49,7 +49,7 @@ impl FromRequest for LoginIdExtractor {
             Some(login_id) => ready(Ok(LoginIdExtractor(login_id.clone()))),
             None => ready(Err(ErrorUnauthorized(serde_json::json!({
                 "code": 401,
-                "message": "未登录或 token 无效"
+                "message": messages::AUTH_ERROR
             })))),
         }
     }

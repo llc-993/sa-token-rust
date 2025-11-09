@@ -44,18 +44,23 @@
 pub mod middleware;
 pub mod extractor;
 pub mod adapter;
+pub mod layer;
 
 // ============================================================================
 // Actix-web 框架集成（本插件特有）
 // ============================================================================
-pub use middleware::{SaTokenMiddleware, SaCheckLoginMiddleware};
+pub use middleware::SaCheckLoginMiddleware;
+pub use layer::SaTokenLayer;
+
+// 为保持向后兼容，SaTokenMiddleware 从 layer 模块重新导出
+pub use middleware::SaTokenMiddleware;
 pub use extractor::{SaTokenExtractor, OptionalSaTokenExtractor, LoginIdExtractor};
 pub use adapter::{ActixRequestAdapter, ActixResponseAdapter};
 
 // ============================================================================
 // 重新导出核心功能（sa-token-core）
 // ============================================================================
-pub use sa_token_core::{
+pub use sa_token_core::{self, 
     // 核心管理器
     SaTokenManager, StpUtil,
     
@@ -96,12 +101,15 @@ pub use sa_token_core::{
     // 分布式会话
     DistributedSessionManager, DistributedSession, DistributedSessionStorage, 
     ServiceCredential, InMemoryDistributedStorage,
+    
+    // 模块
+    token, error
 };
 
 // ============================================================================
 // 重新导出适配器接口（sa-token-adapter）
 // ============================================================================
-pub use sa_token_adapter::{
+pub use sa_token_adapter::{self,
     storage::SaStorage,
     framework::FrameworkAdapter,
 };

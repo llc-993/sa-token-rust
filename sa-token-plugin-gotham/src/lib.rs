@@ -40,11 +40,23 @@
 //! }
 //! ```
 
+pub mod adapter;
+pub mod extractor;
 pub mod middleware;
+pub mod layer;
+pub mod state;
+pub mod wrapper;
 
 // 重新导出核心功能 | Re-export core functionalities
-pub use sa_token_core::*;
-pub use sa_token_adapter::*;
+pub use sa_token_core::{self, SaTokenManager, StpUtil, SaTokenConfig, TokenValue, TokenInfo, 
+    SaSession, PermissionChecker, SaTokenError, SaTokenEvent, SaTokenListener, SaTokenEventBus, LoggingListener,
+    JwtManager, JwtClaims, JwtAlgorithm, OAuth2Manager, OAuth2Client, AuthorizationCode, AccessToken, OAuth2TokenInfo,
+    NonceManager, RefreshTokenManager, WsAuthManager, WsAuthInfo, WsTokenExtractor, DefaultWsTokenExtractor,
+    OnlineManager, OnlineUser, PushMessage, MessageType, MessagePusher, InMemoryPusher,
+    DistributedSessionManager, DistributedSession, DistributedSessionStorage, ServiceCredential, InMemoryDistributedStorage,
+    config::TokenStyle, token, error};
+
+pub use sa_token_adapter::{self, storage::SaStorage, framework::FrameworkAdapter};
 pub use sa_token_macro::*;
 
 // 重新导出存储实现（通过 feature 控制）
@@ -59,5 +71,10 @@ pub use sa_token_storage_redis::*;
 pub use sa_token_storage_database::*;
 
 // 重新导出本模块的适配器 | Re-export adapters from this module
+pub use adapter::*;
+pub use extractor::*;
 pub use middleware::*;
+pub use layer::SaTokenLayer;
+pub use state::{SaTokenState, SaTokenStateBuilder};
+pub use wrapper::{TokenValueWrapper, LoginIdWrapper};
 

@@ -6,8 +6,6 @@
 use gotham::state::{State, StateData};
 use gotham::middleware::Middleware;
 use gotham::handler::HandlerFuture;
-use gotham::hyper::{Response, Body, StatusCode};
-use sa_token_core::StpUtil;
 use std::pin::Pin;
 
 /// 中文 | English

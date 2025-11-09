@@ -28,6 +28,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 http = { workspace = true }
 ntex = "2.12.4"
+urlencoding = { workspace = true }
+tracing = { workspace = true }
 
 [features]
 default = ["memory"]

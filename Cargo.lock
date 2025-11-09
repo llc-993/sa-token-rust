@@ -3802,6 +3802,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower",
+ "tracing",
  "urlencoding",
 ]
 
@@ -3824,6 +3825,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
+ "urlencoding",
 ]
 
 [[package]]
@@ -3841,6 +3844,8 @@ dependencies = [
  "sa-token-storage-redis",
  "serde",
  "serde_json",
+ "tracing",
+ "urlencoding",
 ]
 
 [[package]]
@@ -3877,6 +3882,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "urlencoding",
 ]
 
@@ -3915,6 +3921,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tide",
+ "tracing",
+ "urlencoding",
 ]
 
 [[package]]
@@ -3932,6 +3940,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "urlencoding",
  "warp",
 ]

@@ -32,7 +32,6 @@ pub fn sa_check_permissions_or_impl(attr: TokenStream, item: TokenStream) -> Tok
             .into();
     }
     let perm_values: Vec<String> = perm_lits.iter().map(|p| p.value()).collect();
-    let perm_str = perm_values.join(",");
     let perm_desc = LitStr::new(&perm_values.join(" | "), Span::call_site());
     
     let fn_name = &input.sig.ident;

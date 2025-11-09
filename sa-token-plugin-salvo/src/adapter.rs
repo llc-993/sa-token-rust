@@ -4,7 +4,7 @@
 // Salvo 请求/响应适配器 | Salvo request/response adapter
 
 use salvo::prelude::*;
-use sa_token_adapter::{SaRequest, SaResponse, CookieOptions, parse_cookies, parse_query_string, build_cookie_string};
+use sa_token_adapter::{SaRequest, SaResponse, CookieOptions, build_cookie_string};
 use serde::Serialize;
 
 /// 中文 | English

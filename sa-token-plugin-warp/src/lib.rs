@@ -43,18 +43,20 @@
 pub mod filter;
 pub mod extractor;
 pub mod adapter;
+pub mod layer;
 
 // ============================================================================
 // Warp 框架集成（本插件特有）
 // ============================================================================
 pub use filter::{sa_token_filter, sa_check_login_filter};
+pub use layer::sa_token_layer;
 pub use extractor::{SaTokenExtractor, OptionalSaTokenExtractor, LoginIdExtractor};
 pub use adapter::{WarpRequestAdapter, WarpResponseAdapter};
 
 // ============================================================================
 // 重新导出核心功能（sa-token-core）
 // ============================================================================
-pub use sa_token_core::{
+pub use sa_token_core::{self,
     // 核心管理器
     SaTokenManager, StpUtil,
     
@@ -95,12 +97,15 @@ pub use sa_token_core::{
     // 分布式会话
     DistributedSessionManager, DistributedSession, DistributedSessionStorage, 
     ServiceCredential, InMemoryDistributedStorage,
+    
+    // 模块
+    token, error
 };
 
 // ============================================================================
 // 重新导出适配器接口（sa-token-adapter）
 // ============================================================================
-pub use sa_token_adapter::{
+pub use sa_token_adapter::{self,
     storage::SaStorage,
     framework::FrameworkAdapter,
 };

@@ -28,6 +28,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 http = { workspace = true }
 tide = "0.17.0-beta.1"
+tracing = { workspace = true }
+urlencoding = { workspace = true }
 async-std = "1.13.1"
 
 [features]

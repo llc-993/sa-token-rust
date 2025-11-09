@@ -12,7 +12,7 @@ use actix_web::{
 use crate::SaTokenState;
 use crate::adapter::ActixRequestAdapter;
 use sa_token_adapter::context::SaRequest;
-use sa_token_core::{token::TokenValue, SaTokenContext};
+use sa_token_core::{token::TokenValue, SaTokenContext, error::messages};
 use std::sync::Arc;
 
 /// sa-token 基础中间件 - 提取并验证 token
@@ -181,7 +181,7 @@ where
             // 未登录，返回 401
             Err(ErrorUnauthorized(serde_json::json!({
                 "code": 401,
-                "message": "未登录"
+                "message": messages::AUTH_ERROR
             }).to_string()))
         })
     }

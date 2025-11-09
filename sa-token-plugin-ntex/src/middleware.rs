@@ -6,9 +6,6 @@
 use ntex::service::{Middleware, Service, ServiceCtx};
 use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 use sa_token_core::StpUtil;
-use std::future::Future;
-use std::pin::Pin;
-
 /// 中文 | English
 /// 认证中间件 - 验证用户登录状态 | Authentication middleware - verify user login status
 ///

@@ -32,7 +32,6 @@ pub fn sa_check_roles_or_impl(attr: TokenStream, item: TokenStream) -> TokenStre
             .into();
     }
     let role_values: Vec<String> = role_lits.iter().map(|r| r.value()).collect();
-    let role_str = role_values.join(",");
     let role_desc = LitStr::new(&role_values.join(" | "), Span::call_site());
     
     let fn_name = &input.sig.ident;

@@ -32,6 +32,8 @@ gotham = "0.7.4"
 gotham_derive = "0.7.1"
 hyper = "1.6.0"
 mime = "0.3.17"
+urlencoding = { workspace = true }
+tracing = { workspace = true }
 
 [features]
 default = ["memory"]
