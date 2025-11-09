@@ -19,7 +19,7 @@
 //! 
 //! ```toml
 //! [dependencies]
-//! sa-token-plugin-ntex = "0.1.4"
+//! sa-token-plugin-ntex = "0.1.5"
 //! ```
 //! 
 //! ```rust,ignore

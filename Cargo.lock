@@ -3724,7 +3724,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 
 [[package]]
 name = "sa-token-adapter"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3736,7 +3736,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-core"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3758,7 +3758,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-macro"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3768,7 +3768,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-actix-web"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "actix-web",
  "async-trait",
@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-axum"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "axum",
@@ -3807,7 +3807,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-gotham"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "gotham",
@@ -3828,7 +3828,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-ntex"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3845,7 +3845,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-poem"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "poem",
@@ -3864,7 +3864,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-rocket"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "rocket",
@@ -3882,7 +3882,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-salvo"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3901,7 +3901,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-tide"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-std",
  "async-trait",
@@ -3919,7 +3919,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-warp"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3938,7 +3938,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-rust"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3951,7 +3951,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-storage-database"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "sa-token-adapter",
@@ -3961,7 +3961,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-storage-memory"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3971,7 +3971,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-storage-redis"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "redis",

@@ -19,7 +19,7 @@
 //! 
 //! ```toml
 //! [dependencies]
-//! sa-token-plugin-salvo = "0.1.4"
+//! sa-token-plugin-salvo = "0.1.5"
 //! ```
 //! 
 //! ```rust,ignore
