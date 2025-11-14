@@ -4,9 +4,10 @@
 
 use rocket::{Request, Data, Response};
 use rocket::fairing::{Fairing, Info, Kind};
-use rocket::http::Status;
+use rocket::http::{Status, ContentType};
 use crate::SaTokenState;
-use sa_token_core::token::TokenValue;
+use sa_token_core::{token::TokenValue, error::messages};
+use serde_json::json;
 
 /// sa-token Fairing - 提取并验证 token
 pub struct SaTokenFairing {
@@ -133,9 +134,119 @@ impl Fairing for SaCheckLoginFairing {
             if *request.local_cache(|| None::<&str>) == Some("unauthorized") {
                 response.set_status(Status::Unauthorized);
                 response.set_sized_body(None, std::io::Cursor::new(
-                    serde_json::json!({
+                    json!({
                         "code": 401,
-                        "message": "未登录"
+                        "message": messages::AUTH_ERROR
+                    }).to_string()
+                ));
+            }
+        }
+    }
+}
+
+/// sa-token 权限检查 Fairing - 强制要求特定权限
+pub struct SaCheckPermissionFairing {
+    #[allow(dead_code)]
+    state: SaTokenState,
+    permission: String,
+}
+
+impl SaCheckPermissionFairing {
+    pub fn new(state: SaTokenState, permission: impl Into<String>) -> Self {
+        Self {
+            state,
+            permission: permission.into(),
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl Fairing for SaCheckPermissionFairing {
+    fn info(&self) -> Info {
+        Info {
+            name: "SaToken Check Permission",
+            kind: Kind::Request | Kind::Response,
+        }
+    }
+    
+    async fn on_request(&self, request: &mut Request<'_>, _data: &mut Data<'_>) {
+        // 检查是否有登录ID
+        if let Some(login_id) = request.local_cache(|| None::<String>).clone() {
+            // 检查权限
+            if sa_token_core::StpUtil::has_permission(&login_id, &self.permission).await {
+                return;
+            }
+        }
+        
+        // 无权限，标记为禁止访问
+        request.local_cache(|| Some("forbidden"));
+    }
+    
+    async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
+        // 检查是否标记为禁止访问
+        if let Some(_) = request.local_cache(|| None::<&str>) {
+            if *request.local_cache(|| None::<&str>) == Some("forbidden") {
+                response.set_status(Status::Forbidden);
+                response.set_header(ContentType::JSON);
+                response.set_sized_body(None, std::io::Cursor::new(
+                    json!({
+                        "code": 403,
+                        "message": messages::PERMISSION_REQUIRED
+                    }).to_string()
+                ));
+            }
+        }
+    }
+}
+
+/// sa-token 角色检查 Fairing - 强制要求特定角色
+pub struct SaCheckRoleFairing {
+    #[allow(dead_code)]
+    state: SaTokenState,
+    role: String,
+}
+
+impl SaCheckRoleFairing {
+    pub fn new(state: SaTokenState, role: impl Into<String>) -> Self {
+        Self {
+            state,
+            role: role.into(),
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl Fairing for SaCheckRoleFairing {
+    fn info(&self) -> Info {
+        Info {
+            name: "SaToken Check Role",
+            kind: Kind::Request | Kind::Response,
+        }
+    }
+    
+    async fn on_request(&self, request: &mut Request<'_>, _data: &mut Data<'_>) {
+        // 检查是否有登录ID
+        if let Some(login_id) = request.local_cache(|| None::<String>).clone() {
+            // 检查角色
+            if sa_token_core::StpUtil::has_role(&login_id, &self.role).await {
+                return;
+            }
+        }
+        
+        // 无角色，标记为禁止访问
+        request.local_cache(|| Some("forbidden_role"));
+    }
+    
+    async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
+        // 检查是否标记为禁止访问
+        if let Some(_) = request.local_cache(|| None::<&str>) {
+            if *request.local_cache(|| None::<&str>) == Some("forbidden_role") {
+                response.set_status(Status::Forbidden);
+                response.set_header(ContentType::JSON);
+                response.set_sized_body(None, std::io::Cursor::new(
+                    json!({
+                        "code": 403,
+                        "message": messages::ROLE_REQUIRED
                     }).to_string()
                 ));
             }

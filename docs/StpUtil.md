@@ -53,6 +53,27 @@ println!("Generated token: {}", token.value());
 let token = StpUtil::login(10001).await?;  // i32, i64, u32, u64 supported
 ```
 
+### Fluent Login Builder
+
+```rust
+use sa_token_core::StpUtil;
+use serde_json::json;
+
+// Chainable builder-style login with extra metadata
+let token = StpUtil::builder("user_123")
+    .extra_data(json!({"ip": "192.168.1.1"}))
+    .device("pc")
+    .login_type("admin")
+    .login(None) // None => use builder login_id; Some("other_id") overrides
+    .await?;
+let token = StpUtil::builder("user_123")
+    .extra_data(json!({"ip": "192.168.1.1"}))
+    .device("pc")
+    .login_type("admin")
+    .login(Some("new_user_456"))  // 或 Some(10001) 数字ID
+    .await?;    
+```
+
 ### Login with Device Identification
 
 ```rust

@@ -53,33 +53,48 @@ impl Fairing for SaTokenLayer {
 }
 
 fn extract_token_from_request(req: &Request, state: &SaTokenState) -> Option<String> {
+    use sa_token_adapter::utils::extract_bearer_token as utils_extract_bearer_token;
     let token_name = &state.manager.config.token_name;
     
+    // 1. 优先从 Header 中获取
     if let Some(header_value) = req.headers().get_one(token_name) {
-        return Some(extract_bearer_token(header_value));
+        if let Some(token) = utils_extract_bearer_token(header_value) {
+            return Some(token);
+        }
     }
     
+    // 检查 Authorization header
     if let Some(auth_header) = req.headers().get_one("authorization") {
-        return Some(extract_bearer_token(auth_header));
+        if let Some(token) = utils_extract_bearer_token(auth_header) {
+            return Some(token);
+        }
     }
     
+    // 2. 从 Cookie 中获取
     if let Some(cookie_value) = req.cookies().get(token_name) {
         return Some(cookie_value.value().to_string());
     }
     
-    if let Some(query_value) = req.query_value::<String>(token_name) {
-        if let Ok(value) = query_value {
-            return Some(value);
+    // 3. 从 Query 参数中获取
+    if let Some(query) = req.uri().query() {
+        let params = parse_query_string(query.as_str());
+        if let Some(token) = params.get(token_name) {
+            return Some(token.clone());
         }
     }
     
     None
 }
 
-fn extract_bearer_token(header_value: &str) -> String {
-    if header_value.starts_with("Bearer ") {
-        header_value[7..].trim().to_string()
-    } else {
-        header_value.trim().to_string()
+// 解析查询字符串
+fn parse_query_string(query: &str) -> std::collections::HashMap<String, String> {
+    let mut params = std::collections::HashMap::new();
+    for pair in query.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            if let Ok(decoded_value) = urlencoding::decode(value) {
+                params.insert(key.to_string(), decoded_value.to_string());
+            }
+        }
     }
+    params
 }

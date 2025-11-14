@@ -1,20 +1,23 @@
 // Author: 金书记
 //
-//! Warp 请求/响应适配器
+// 中文 | English
+// Warp 请求/响应适配器 | Warp request/response adapters
 
 use warp::http::{HeaderMap, Response, StatusCode};
 use warp::hyper::body::Bytes;
-use sa_token_adapter::context::{SaRequest, SaResponse, CookieOptions};
+use sa_token_adapter::{SaRequest, SaResponse, CookieOptions, build_cookie_string, utils};
 use serde::Serialize;
-use std::collections::HashMap;
 
-/// Warp 请求适配器
+/// 中文 | English
+/// Warp 请求适配器 | Warp request adapter
 pub struct WarpRequestAdapter<'a> {
     headers: &'a HeaderMap,
     query: &'a str,
 }
 
 impl<'a> WarpRequestAdapter<'a> {
+    /// 中文 | English
+    /// 创建新的请求适配器 | Create a new request adapter
     pub fn new(headers: &'a HeaderMap, query: &'a str) -> Self {
         Self { headers, query }
     }
@@ -28,39 +31,43 @@ impl<'a> SaRequest for WarpRequestAdapter<'a> {
     }
     
     fn get_cookie(&self, name: &str) -> Option<String> {
-        // Warp 中 Cookie 通常从 Header 中解析
+        // Warp 中 Cookie 通常从 Header 中解析 | In Warp, cookies are usually parsed from headers
         if let Some(cookie_header) = self.headers.get("cookie") {
             if let Ok(cookie_str) = cookie_header.to_str() {
-                return parse_cookie(cookie_str, name);
+                let cookies = utils::parse_cookies(cookie_str);
+                return cookies.get(name).map(|s| s.to_string());
             }
         }
         None
     }
     
     fn get_param(&self, name: &str) -> Option<String> {
-        parse_query_string(self.query)
-            .get(name)
-            .cloned()
+        if !self.query.is_empty() {
+            let params = utils::parse_query_string(self.query);
+            return params.get(name).map(|s| s.to_string());
+        }
+        None
     }
     
     fn get_path(&self) -> String {
-        // Warp 中需要从外部传入
+        // Warp 中需要从外部传入 | In Warp, this needs to be passed from outside
         String::new()
     }
     
     fn get_method(&self) -> String {
-        // Warp 中需要从外部传入
+        // Warp 中需要从外部传入 | In Warp, this needs to be passed from outside
         String::new()
     }
     
     fn get_client_ip(&self) -> Option<String> {
-        // Warp 中需要从外部传入或从 Header 获取
+        // 从常见的代理头中获取 IP | Get IP from common proxy headers
         self.get_header("x-forwarded-for")
             .or_else(|| self.get_header("x-real-ip"))
     }
 }
 
-/// Warp 响应适配器
+/// 中文 | English
+/// Warp 响应适配器 | Warp response adapter
 pub struct WarpResponseAdapter {
     status: StatusCode,
     headers: Vec<(String, String)>,
@@ -68,6 +75,8 @@ pub struct WarpResponseAdapter {
 }
 
 impl WarpResponseAdapter {
+    /// 中文 | English
+    /// 创建新的响应适配器 | Create a new response adapter
     pub fn new() -> Self {
         Self {
             status: StatusCode::OK,
@@ -76,7 +85,8 @@ impl WarpResponseAdapter {
         }
     }
     
-    /// 构建 Warp Response
+    /// 中文 | English
+    /// 构建 Warp Response | Build Warp Response
     pub fn build(self) -> Response<Bytes> {
         let mut builder = Response::builder().status(self.status);
         
@@ -85,7 +95,7 @@ impl WarpResponseAdapter {
         }
         
         let body = self.body.unwrap_or_default();
-        builder.body(Bytes::from(body)).unwrap()
+        builder.body(Bytes::from(body)).unwrap_or_default()
     }
 }
 
@@ -101,34 +111,8 @@ impl SaResponse for WarpResponseAdapter {
     }
     
     fn set_cookie(&mut self, name: &str, value: &str, options: CookieOptions) {
-        let mut cookie = format!("{}={}", name, value);
-        
-        if let Some(domain) = options.domain {
-            cookie.push_str(&format!("; Domain={}", domain));
-        }
-        if let Some(path) = options.path {
-            cookie.push_str(&format!("; Path={}", path));
-        }
-        if let Some(max_age) = options.max_age {
-            cookie.push_str(&format!("; Max-Age={}", max_age));
-        }
-        if options.http_only {
-            cookie.push_str("; HttpOnly");
-        }
-        if options.secure {
-            cookie.push_str("; Secure");
-        }
-        if let Some(same_site) = options.same_site {
-            use sa_token_adapter::context::SameSite;
-            let ss = match same_site {
-                SameSite::Strict => "Strict",
-                SameSite::Lax => "Lax",
-                SameSite::None => "None",
-            };
-            cookie.push_str(&format!("; SameSite={}", ss));
-        }
-        
-        self.headers.push(("Set-Cookie".to_string(), cookie));
+        let cookie_string = build_cookie_string(name, value, options);
+        self.set_header("Set-Cookie", &cookie_string);
     }
     
     fn set_status(&mut self, status: u16) {
@@ -143,30 +127,4 @@ impl SaResponse for WarpResponseAdapter {
         self.headers.push(("Content-Type".to_string(), "application/json".to_string()));
         Ok(())
     }
-}
-
-/// 解析查询字符串
-fn parse_query_string(query: &str) -> HashMap<String, String> {
-    let mut params = HashMap::new();
-    for pair in query.split('&') {
-        if let Some((key, value)) = pair.split_once('=') {
-            if let Ok(decoded_value) = urlencoding::decode(value) {
-                params.insert(key.to_string(), decoded_value.to_string());
-            }
-        }
-    }
-    params
-}
-
-/// 解析 Cookie
-fn parse_cookie(cookie_str: &str, name: &str) -> Option<String> {
-    for pair in cookie_str.split(';') {
-        let pair = pair.trim();
-        if let Some((key, value)) = pair.split_once('=') {
-            if key == name {
-                return Some(value.to_string());
-            }
-        }
-    }
-    None
 }

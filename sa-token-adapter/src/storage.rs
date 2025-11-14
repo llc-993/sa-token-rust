@@ -101,4 +101,13 @@ pub trait SaStorage: Send + Sync {
     
     /// 清空所有数据（谨慎使用）
     async fn clear(&self) -> StorageResult<()>;
+    
+    /// 获取匹配模式的所有键
+    /// 
+    /// # 参数
+    /// * `pattern` - 匹配模式，支持 * 通配符
+    async fn keys(&self, _pattern: &str) -> StorageResult<Vec<String>> {
+        // 默认实现：不支持模式匹配，返回空列表
+        Ok(Vec::new())
+    }
 }

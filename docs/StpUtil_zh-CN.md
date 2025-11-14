@@ -53,6 +53,29 @@ println!("生成的 token: {}", token.value());
 let token = StpUtil::login(10001).await?;  // 支持 i32, i64, u32, u64
 ```
 
+### 链式构建登录
+
+```rust
+use sa_token_core::StpUtil;
+use serde_json::json;
+
+// 链式调用设置额外信息
+let token = StpUtil::builder("user_123")
+    .extra_data(json!({"ip": "192.168.1.1"}))
+    .device("pc")
+    .login_type("admin")
+    .login(None) // None 表示使用构建器中的 login_id，Some("other_id") 可覆盖
+    .await?;
+
+let token = StpUtil::builder("user_123")
+    .extra_data(json!({"ip": "192.168.1.1"}))
+    .device("pc")
+    .login_type("admin")
+    .login(Some("new_user_456"))  // 或 Some(10001) 数字ID
+    .await?;
+
+```
+
 ### 带设备标识的登录
 
 ```rust

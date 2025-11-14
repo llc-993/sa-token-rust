@@ -13,8 +13,8 @@ description = "Axum framework integration for sa-token-rust - All-in-one package
 
 [dependencies]
 # 核心依赖（重新导出给用户）
-sa-token-core = { version = "0.1.5", path = "../sa-token-core" }
-sa-token-adapter = { version = "0.1.5", path = "../sa-token-adapter" }
+sa-token-core = { version = "0.1.6", path = "../sa-token-core" }
+sa-token-adapter = { version = "0.1.6", path = "../sa-token-adapter" }
 sa-token-macro = { version = "0.1.5", path = "../sa-token-macro" }
 
 # 存储实现（可选，通过 feature 控制）
@@ -28,6 +28,7 @@ async-trait = { workspace = true }
 axum = "0.8.4"
 tower = { workspace = true }
 http = { workspace = true }
+http-body = "1.0"
 serde = { workspace = true }
 serde_json = { workspace = true }
 urlencoding = "2.1.3"

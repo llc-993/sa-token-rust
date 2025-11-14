@@ -53,7 +53,7 @@ pub mod adapter;
 // ============================================================================
 pub use layer::SaTokenLayer;
 pub use extractor::{SaTokenExtractor, OptionalSaTokenExtractor, LoginIdExtractor};
-pub use middleware::SaTokenMiddleware;
+pub use middleware::{SaTokenMiddleware, SaCheckLoginLayer, SaCheckLoginMiddleware, SaCheckPermissionLayer, SaCheckPermissionMiddleware};
 
 // ============================================================================
 // 重新导出核心功能（sa-token-core）

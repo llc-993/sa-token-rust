@@ -1,3 +1,8 @@
+// Author: 金书记
+//
+// 中文 | English
+// Warp 状态管理 | Warp state management
+
 use std::sync::Arc;
 use sa_token_adapter::storage::SaStorage;
 use sa_token_core::{SaTokenManager, SaTokenConfig, StpUtil, SaTokenListener};

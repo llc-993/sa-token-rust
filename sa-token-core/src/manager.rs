@@ -129,19 +129,47 @@ impl SaTokenManager {
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
         
         // 触发登出事件
-        if let Some(info) = token_info {
-            let event = SaTokenEvent::logout(info.login_id, token.as_str())
+        if let Some(info) = token_info.clone() {
+            let event = SaTokenEvent::logout(&info.login_id, token.as_str())
                 .with_login_type(&info.login_type);
             self.event_bus.publish(event).await;
+            
+            // 如果有在线用户管理，通知用户下线
+            if let Some(online_mgr) = &self.online_manager {
+                online_mgr.mark_offline(&info.login_id, token.as_str()).await;
+            }
         }
         
         Ok(())
     }
     
     /// 根据登录 ID 登出所有 token
-    pub async fn logout_by_login_id(&self, _login_id: &str) -> SaTokenResult<()> {
-        // TODO: 实现根据登录 ID 查找所有 token 并删除
-        // 这需要维护 login_id -> tokens 的映射
+    pub async fn logout_by_login_id(&self, login_id: &str) -> SaTokenResult<()> {
+        // 获取所有 token 键的前缀
+        let token_prefix = "sa:token:";
+        
+        // 获取所有 token 键
+        if let Ok(keys) = self.storage.keys(&format!("{}*", token_prefix)).await {
+            // 遍历所有 token 键
+            for key in keys {
+                // 获取 token 值
+                if let Ok(Some(token_info_str)) = self.storage.get(&key).await {
+                    // 反序列化 token 信息
+                    if let Ok(token_info) = serde_json::from_str::<TokenInfo>(&token_info_str) {
+                        // 如果 login_id 匹配，则登出该 token
+                        if token_info.login_id == login_id {
+                            // 提取 token 字符串（从键中移除前缀）
+                            let token_str = key[token_prefix.len()..].to_string();
+                            let token = TokenValue::new(token_str);
+                            
+                            // 调用登出方法（logout 方法内部会处理删除映射和在线用户管理）
+                            let _ = self.logout(&token).await;
+                        }
+                    }
+                }
+            }
+        }
+        
         Ok(())
     }
     

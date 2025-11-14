@@ -4,7 +4,11 @@
 // Salvo 认证中间件 | Salvo authentication middleware
 
 use salvo::prelude::*;
-use sa_token_core::StpUtil;
+use sa_token_core::{StpUtil, error::messages, SaTokenContext, token::TokenValue};
+use serde_json::json;
+use crate::state::SaTokenState;
+use std::sync::Arc;
+use crate::layer::extract_token_from_request;
 
 /// 中文 | English
 /// 认证中间件 - 验证用户登录状态 | Authentication middleware - verify user login status
@@ -98,3 +102,174 @@ impl PermissionMiddleware {
     }
 }
 
+/// 中文 | English
+/// Sa-Token 登录检查中间件 | Sa-Token login check middleware
+///
+/// 使用标准错误消息，检查当前请求是否已登录 | Uses standard error messages, checks if current request is logged in
+#[derive(Clone)]
+pub struct SaCheckLoginMiddleware {
+    pub state: SaTokenState,
+}
+
+impl SaCheckLoginMiddleware {
+    /// 中文 | English
+    /// 创建新的登录检查中间件 | Create new login check middleware
+    pub fn new(state: SaTokenState) -> Self {
+        Self { state }
+    }
+}
+
+#[salvo::async_trait]
+impl Handler for SaCheckLoginMiddleware {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        let mut ctx = SaTokenContext::new();
+        
+        if let Some(token_str) = extract_token_from_request(req, &self.state) {
+            tracing::debug!("Sa-Token(login-check): extracted token from request: {}", token_str);
+            let token = TokenValue::new(token_str);
+            
+            if self.state.manager.is_valid(&token).await {
+                if let Ok(token_info) = self.state.manager.get_token_info(&token).await {
+                    let login_id = token_info.login_id.clone();
+                    depot.insert("sa_token", token.clone());
+                    depot.insert("sa_login_id", login_id.clone());
+                    
+                    ctx.token = Some(token.clone());
+                    ctx.token_info = Some(Arc::new(token_info));
+                    ctx.login_id = Some(login_id);
+                    
+                    SaTokenContext::set_current(ctx);
+                    ctrl.call_next(req, depot, res).await;
+                    SaTokenContext::clear();
+                    return;
+                }
+            }
+        }
+        
+        // 未登录，返回401错误
+        res.status_code(StatusCode::UNAUTHORIZED);
+        res.render(Text::Json(json!({
+            "code": 401,
+            "message": messages::AUTH_ERROR
+        }).to_string()));
+        ctrl.skip_rest();
+    }
+}
+
+/// 中文 | English
+/// Sa-Token 权限检查中间件 | Sa-Token permission check middleware
+///
+/// 检查当前请求用户是否拥有指定权限 | Checks if current request user has specified permission
+#[derive(Clone)]
+pub struct SaCheckPermissionMiddleware {
+    pub state: SaTokenState,
+    permission: String,
+}
+
+impl SaCheckPermissionMiddleware {
+    /// 中文 | English
+    /// 创建新的权限检查中间件 | Create new permission check middleware
+    pub fn new(state: SaTokenState, permission: impl Into<String>) -> Self {
+        Self { state, permission: permission.into() }
+    }
+}
+
+#[salvo::async_trait]
+impl Handler for SaCheckPermissionMiddleware {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        let mut ctx = SaTokenContext::new();
+        
+        if let Some(token_str) = extract_token_from_request(req, &self.state) {
+            tracing::debug!("Sa-Token(permission-check): extracted token from request: {}", token_str);
+            let token = TokenValue::new(token_str);
+            
+            if self.state.manager.is_valid(&token).await {
+                if let Ok(token_info) = self.state.manager.get_token_info(&token).await {
+                    let login_id = token_info.login_id.clone();
+                    
+                    // 检查权限
+                    if StpUtil::has_permission(&login_id, &self.permission).await {
+                        depot.insert("sa_token", token.clone());
+                        depot.insert("sa_login_id", login_id.clone());
+                        
+                        ctx.token = Some(token.clone());
+                        ctx.token_info = Some(Arc::new(token_info));
+                        ctx.login_id = Some(login_id);
+                        
+                        SaTokenContext::set_current(ctx);
+                        ctrl.call_next(req, depot, res).await;
+                        SaTokenContext::clear();
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // 无权限，返回403错误
+        res.status_code(StatusCode::FORBIDDEN);
+        res.render(Text::Json(json!({
+            "code": 403,
+            "message": messages::PERMISSION_REQUIRED
+        }).to_string()));
+        ctrl.skip_rest();
+    }
+}
+
+/// 中文 | English
+/// Sa-Token 角色检查中间件 | Sa-Token role check middleware
+///
+/// 检查当前请求用户是否拥有指定角色 | Checks if current request user has specified role
+#[derive(Clone)]
+pub struct SaCheckRoleMiddleware {
+    pub state: SaTokenState,
+    role: String,
+}
+
+impl SaCheckRoleMiddleware {
+    /// 中文 | English
+    /// 创建新的角色检查中间件 | Create new role check middleware
+    pub fn new(state: SaTokenState, role: impl Into<String>) -> Self {
+        Self { state, role: role.into() }
+    }
+}
+
+#[salvo::async_trait]
+impl Handler for SaCheckRoleMiddleware {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        let mut ctx = SaTokenContext::new();
+        
+        if let Some(token_str) = extract_token_from_request(req, &self.state) {
+            tracing::debug!("Sa-Token(role-check): extracted token from request: {}", token_str);
+            let token = TokenValue::new(token_str);
+            
+            if self.state.manager.is_valid(&token).await {
+                if let Ok(token_info) = self.state.manager.get_token_info(&token).await {
+                    let login_id = token_info.login_id.clone();
+                    
+                    // 检查角色
+                    if StpUtil::has_role(&login_id, &self.role).await {
+                        depot.insert("sa_token", token.clone());
+                        depot.insert("sa_login_id", login_id.clone());
+                        
+                        ctx.token = Some(token.clone());
+                        ctx.token_info = Some(Arc::new(token_info));
+                        ctx.login_id = Some(login_id);
+                        
+                        SaTokenContext::set_current(ctx);
+                        ctrl.call_next(req, depot, res).await;
+                        SaTokenContext::clear();
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // 无角色权限，返回403错误
+        res.status_code(StatusCode::FORBIDDEN);
+        res.render(Text::Json(json!({
+            "code": 403,
+            "message": messages::ROLE_REQUIRED
+        }).to_string()));
+        ctrl.skip_rest();
+    }
+}

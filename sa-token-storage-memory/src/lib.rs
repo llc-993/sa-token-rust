@@ -140,6 +140,27 @@ impl SaStorage for MemoryStorage {
         data.clear();
         Ok(())
     }
+    
+    async fn keys(&self, pattern: &str) -> StorageResult<Vec<String>> {
+        let data = self.data.read().await;
+        let mut result = Vec::new();
+        
+        // 将模式转换为正则表达式
+        let pattern = pattern.replace("*", ".*");
+        let regex = match regex::Regex::new(&pattern) {
+            Ok(r) => r,
+            Err(e) => return Err(StorageError::OperationFailed(format!("Invalid pattern: {}", e))),
+        };
+        
+        // 筛选匹配的键
+        for (key, item) in data.iter() {
+            if !item.is_expired() && regex.is_match(key) {
+                result.push(key.clone());
+            }
+        }
+        
+        Ok(result)
+    }
 }
 
 #[cfg(test)]

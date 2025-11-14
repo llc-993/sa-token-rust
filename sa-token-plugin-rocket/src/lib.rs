@@ -20,10 +20,18 @@
 //! ```rust,ignore
 //! use rocket::{State, get};
 //! use sa_token_plugin_rocket::*;  // 一次性导入所有功能
+//! use std::sync::Arc;
 //! 
+//! // 用户信息接口 - 需要登录
 //! #[get("/user/info")]
 //! async fn user_info(token: SaTokenGuard) -> String {
-//!     format!("User ID: {}", token.login_id())
+//!     format!("User ID: {}", token.token().as_str())
+//! }
+//! 
+//! // 管理员接口 - 需要权限
+//! #[get("/admin/users")]
+//! async fn admin_users(login_id: LoginIdGuard) -> String {
+//!     format!("Admin: {}", login_id.login_id())
 //! }
 //! 
 //! #[rocket::main]
@@ -36,9 +44,14 @@
 //!     
 //!     // 2. 创建 Rocket 实例
 //!     rocket::build()
-//!         .attach(SaTokenFairing::new(state.manager.clone()))
+//!         // 基础中间件 - 提取并验证 token
+//!         .attach(SaTokenLayer::new(state.clone()))
+//!         // 登录检查中间件 - 应用于 /user 路径
+//!         .attach(SaCheckLoginFairing::new(state.clone()))
+//!         // 权限检查中间件 - 应用于 /admin 路径
+//!         .attach(SaCheckPermissionFairing::new(state.clone(), "admin"))
 //!         .manage(state)
-//!         .mount("/", routes![user_info])
+//!         .mount("/", routes![user_info, admin_users])
 //!         .launch()
 //!         .await
 //!         .unwrap();
@@ -49,11 +62,12 @@ pub mod middleware;
 pub mod extractor;
 pub mod adapter;
 pub mod layer;
+pub mod state;
 
 // ============================================================================
 // Rocket 框架集成（本插件特有）
 // ============================================================================
-pub use middleware::SaTokenFairing;
+pub use middleware::{SaTokenFairing, SaCheckLoginFairing, SaCheckPermissionFairing, SaCheckRoleFairing};
 pub use layer::SaTokenLayer;
 pub use extractor::{SaTokenGuard, OptionalSaTokenGuard, LoginIdGuard};
 pub use adapter::{RocketRequestAdapter, RocketResponseAdapter};
@@ -145,92 +159,5 @@ pub use sa_token_storage_redis::RedisStorage;
 #[cfg(feature = "database")]
 pub use sa_token_storage_database::DatabaseStorage;
 
-use std::sync::Arc;
-
-/// Rocket 应用状态
-#[derive(Clone)]
-pub struct SaTokenState {
-    pub manager: Arc<SaTokenManager>,
-}
-
-impl SaTokenState {
-    /// 创建状态构建器
-    pub fn builder() -> SaTokenStateBuilder {
-        SaTokenStateBuilder::new()
-    }
-}
-
-/// 状态构建器
-#[derive(Default)]
-pub struct SaTokenStateBuilder {
-    config_builder: sa_token_core::config::SaTokenConfigBuilder,
-}
-
-impl SaTokenStateBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    
-    pub fn storage(mut self, storage: Arc<dyn SaStorage>) -> Self {
-        self.config_builder = self.config_builder.storage(storage);
-        self
-    }
-    
-    pub fn token_name(mut self, name: impl Into<String>) -> Self {
-        self.config_builder = self.config_builder.token_name(name);
-        self
-    }
-    
-    pub fn timeout(mut self, timeout: i64) -> Self {
-        self.config_builder = self.config_builder.timeout(timeout);
-        self
-    }
-    
-    pub fn active_timeout(mut self, timeout: i64) -> Self {
-        self.config_builder = self.config_builder.active_timeout(timeout);
-        self
-    }
-    
-    /// 设置是否开启自动续签
-    pub fn auto_renew(mut self, enabled: bool) -> Self {
-        self.config_builder = self.config_builder.auto_renew(enabled);
-        self
-    }
-    
-    pub fn is_concurrent(mut self, concurrent: bool) -> Self {
-        self.config_builder = self.config_builder.is_concurrent(concurrent);
-        self
-    }
-    
-    pub fn is_share(mut self, share: bool) -> Self {
-        self.config_builder = self.config_builder.is_share(share);
-        self
-    }
-    
-    /// 设置 Token 风格
-    pub fn token_style(mut self, style: sa_token_core::config::TokenStyle) -> Self {
-        self.config_builder = self.config_builder.token_style(style);
-        self
-    }
-    
-    pub fn token_prefix(mut self, prefix: impl Into<String>) -> Self {
-        self.config_builder = self.config_builder.token_prefix(prefix);
-        self
-    }
-    
-    pub fn jwt_secret_key(mut self, key: impl Into<String>) -> Self {
-        self.config_builder = self.config_builder.jwt_secret_key(key);
-        self
-    }
-    
-    pub fn build(self) -> SaTokenState {
-        let manager = self.config_builder.build();
-        
-        // 自动初始化全局 StpUtil
-        sa_token_core::StpUtil::init_manager(manager.clone());
-        
-        SaTokenState {
-            manager: Arc::new(manager),
-        }
-    }
-}
+/// 重新导出 SaTokenState 和 SaTokenStateBuilder
+pub use state::{SaTokenState, SaTokenStateBuilder};

@@ -29,15 +29,40 @@ impl<'a, State> SaRequest for TideRequestAdapter<'a, State> {
     }
     
     fn get_cookie(&self, name: &str) -> Option<String> {
-        self.request
-            .cookie(name)
-            .map(|c| c.value().to_string())
+        // 先尝试使用 cookie 方法 | First try using cookie method
+        if let Some(cookie) = self.request.cookie(name) {
+            return Some(cookie.value().to_string());
+        }
+        
+        // 如果没有找到，手动解析 Cookie 头 | If not found, manually parse Cookie header
+        if let Some(cookie_header) = self.request.header("cookie") {
+            if let Some(cookie_str) = cookie_header.get(0) {
+                let cookies = sa_token_adapter::utils::parse_cookies(cookie_str.as_str());
+                if let Some(value) = cookies.get(name) {
+                    return Some(value.to_string());
+                }
+            }
+        }
+        
+        None
     }
     
     fn get_param(&self, name: &str) -> Option<String> {
-        self.request.url().query_pairs()
-            .find(|(k, _)| k == name)
-            .map(|(_, v)| v.to_string())
+        // 先尝试使用 query_pairs 方法 | First try using query_pairs method
+        if let Some((_, value)) = self.request.url().query_pairs()
+            .find(|(k, _)| k == name) {
+            return Some(value.to_string());
+        }
+        
+        // 如果没有找到，手动解析查询字符串 | If not found, manually parse query string
+        if let Some(query) = self.request.url().query() {
+            let params = sa_token_adapter::utils::parse_query_string(query);
+            if let Some(value) = params.get(name) {
+                return Some(value.to_string());
+            }
+        }
+        
+        None
     }
     
     fn get_path(&self) -> String {

@@ -19,17 +19,19 @@
 //! 
 //! ```toml
 //! [dependencies]
-//! sa-token-plugin-salvo = "0.1.5"
+//! sa-token-plugin-salvo = "0.1.6"
 //! ```
 //! 
 //! ```rust,ignore
+//! use std::sync::Arc;
 //! use sa_token_plugin_salvo::*;
 //! 
 //! #[tokio::main]
 //! async fn main() {
 //!     let storage = Arc::new(MemoryStorage::new());
 //!     
-//!     SaTokenConfig::builder()
+//!     // 创建 Sa-Token 状态 | Create Sa-Token state
+//!     let state = SaTokenState::builder()
 //!         .token_name("Authorization")
 //!         .timeout(7200)
 //!         .storage(storage)
@@ -37,8 +39,16 @@
 //!     
 //!     // 使用 Salvo 路由 | Use Salvo router
 //!     let router = Router::new()
+//!         // 公共路由 | Public routes
 //!         .push(Router::with_path("login").post(login_handler))
-//!         .push(Router::with_path("user").get(user_info_handler));
+//!         // 需要登录的路由 | Routes requiring login
+//!         .push(Router::with_path("user")
+//!             .hoop(SaCheckLoginMiddleware::new(state.clone()))
+//!             .get(user_info_handler))
+//!         // 需要特定权限的路由 | Routes requiring specific permission
+//!         .push(Router::with_path("admin")
+//!             .hoop(SaCheckPermissionMiddleware::new(state.clone(), "admin:access"))
+//!             .get(admin_handler));
 //!     
 //!     Server::new(TcpListener::new("127.0.0.1:5800").bind().await)
 //!         .serve(router)
@@ -50,7 +60,7 @@ pub mod adapter;
 pub mod extractor;
 pub mod middleware;
 pub mod layer;
-mod state;
+pub mod state;
 
 // 重新导出核心功能 | Re-export core functionalities
 pub use sa_token_core::{self, SaTokenManager, StpUtil, SaTokenConfig, TokenValue, TokenInfo, 
@@ -78,7 +88,9 @@ pub use sa_token_storage_database::*;
 // 重新导出本模块的适配器 | Re-export adapters from this module
 pub use adapter::*;
 pub use extractor::*;
-pub use middleware::*;
-pub use layer::SaTokenLayer;
+pub use middleware::{
+    auth_middleware, permission_middleware, 
+    SaCheckLoginMiddleware, SaCheckPermissionMiddleware, SaCheckRoleMiddleware
+};
+pub use layer::{SaTokenLayer, extract_token_from_request};
 pub use state::{SaTokenState, SaTokenStateBuilder};
-

@@ -4,7 +4,8 @@
 
 use poem::{Request, Result, FromRequest, RequestBody};
 use poem::http::StatusCode;
-use sa_token_core::token::TokenValue;
+use sa_token_core::{token::TokenValue, error::messages};
+use serde_json::json;
 
 /// Token 提取器
 /// 
@@ -46,7 +47,13 @@ impl<'a> FromRequest<'a> for SaTokenExtractor {
             .get::<TokenValue>()
             .cloned()
             .ok_or_else(|| {
-                poem::Error::from_status(StatusCode::UNAUTHORIZED)
+                poem::Error::from_string(
+                    json!({
+                        "code": 401,
+                        "message": messages::AUTH_ERROR
+                    }).to_string(),
+                    StatusCode::UNAUTHORIZED
+                )
             })?;
         
         // 从请求扩展中获取 login_id
@@ -55,7 +62,13 @@ impl<'a> FromRequest<'a> for SaTokenExtractor {
             .get::<String>()
             .cloned()
             .ok_or_else(|| {
-                poem::Error::from_status(StatusCode::UNAUTHORIZED)
+                poem::Error::from_string(
+                    json!({
+                        "code": 401,
+                        "message": messages::AUTH_ERROR
+                    }).to_string(),
+                    StatusCode::UNAUTHORIZED
+                )
             })?;
         
         Ok(Self { token, login_id })
@@ -119,7 +132,13 @@ impl<'a> FromRequest<'a> for LoginIdExtractor {
             .get::<String>()
             .cloned()
             .ok_or_else(|| {
-                poem::Error::from_status(StatusCode::UNAUTHORIZED)
+                poem::Error::from_string(
+                    json!({
+                        "code": 401,
+                        "message": messages::AUTH_ERROR
+                    }).to_string(),
+                    StatusCode::UNAUTHORIZED
+                )
             })?;
         
         Ok(Self(login_id))

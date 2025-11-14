@@ -24,21 +24,33 @@
 //! 
 //! ```rust,ignore
 //! use sa_token_plugin_ntex::*;
+//! use std::sync::Arc;
 //! 
 //! #[ntex::main]
 //! async fn main() -> std::io::Result<()> {
 //!     let storage = Arc::new(MemoryStorage::new());
-//!     
-//!     SaTokenConfig::builder()
-//!         .token_name("Authorization")
-//!         .timeout(7200)
+//!     let state = SaTokenState::builder()
 //!         .storage(storage)
+//!         .timeout(7200)
 //!         .build();
 //!     
-//!     ntex::web::HttpServer::new(|| {
+//!     ntex::web::HttpServer::new(move || {
 //!         ntex::web::App::new()
+//!             // 基础 token 提取中间件
+//!             .wrap(SaTokenMiddleware::new(state.clone()))
 //!             .route("/login", ntex::web::post().to(login_handler))
-//!             .route("/user", ntex::web::get().to(user_handler))
+//!             .service(
+//!                 ntex::web::scope("/api")
+//!                     // 需要登录的路由
+//!                     .wrap(SaCheckLoginMiddleware::new(state.clone()))
+//!                     .route("/user", ntex::web::get().to(user_handler))
+//!                     .service(
+//!                         ntex::web::scope("/admin")
+//!                             // 需要管理员权限的路由
+//!                             .wrap(SaCheckPermissionMiddleware::new(state.clone(), "admin"))
+//!                             .route("/users", ntex::web::get().to(admin_users_handler))
+//!                     )
+//!             )
 //!     })
 //!     .bind("127.0.0.1:8080")?
 //!     .run()

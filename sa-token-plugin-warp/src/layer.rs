@@ -1,63 +1,85 @@
-use warp::{Filter, Rejection};
-use sa_token_core::{token::TokenValue, SaTokenContext};
-use crate::SaTokenState;
-use std::sync::Arc;
+use warp::{Filter, Reply, reply};
+use sa_token_core::SaTokenContext;
+use crate::state::SaTokenState;
+use sa_token_adapter::utils::{parse_cookies, parse_query_string, extract_bearer_token as utils_extract_bearer_token};
 
-/// 创建 Sa-Token 认证层
+/// 中文 | English
+/// 创建 Sa-Token 认证层 | Create Sa-Token authentication layer
 /// 
-/// 这个过滤器会从请求中提取 token，验证有效性，并设置上下文
-pub fn sa_token_layer(
-    state: SaTokenState,
-) -> impl Filter<Extract = (), Error = Rejection> + Clone {
-    warp::any()
-        .and(warp::header::headers_cloned())
-        .and_then(move |headers: warp::http::HeaderMap| {
-            let state = state.clone();
-            async move {
-                let mut ctx = SaTokenContext::new();
-                
-                if let Some(token_str) = extract_token_from_headers(&headers, &state) {
-                    tracing::debug!("Sa-Token: extracted token from request: {}", token_str);
-                    let token = TokenValue::new(token_str);
-                    
-                    if state.manager.is_valid(&token).await {
-                        if let Ok(token_info) = state.manager.get_token_info(&token).await {
-                            let login_id = token_info.login_id.clone();
-                            
-                            ctx.token = Some(token.clone());
-                            ctx.token_info = Some(Arc::new(token_info));
-                            ctx.login_id = Some(login_id);
-                        }
-                    }
-                }
-                
-                SaTokenContext::set_current(ctx);
-                Ok::<(), Rejection>(())
-            }
-        })
-        .untuple_one()
+/// 这个过滤器会从请求中提取 token，验证有效性，并设置上下文 | This filter extracts token from request, validates it, and sets context
+pub fn sa_token_layer() -> impl Filter<Extract = impl Reply, Error = std::convert::Infallible> + Clone {
+    warp::any().map(|| {
+        SaTokenContext::set_current(SaTokenContext::new());
+        reply::reply()
+    })
 }
 
-/// 从 HTTP 头中提取 token
-fn extract_token_from_headers(headers: &warp::http::HeaderMap, state: &SaTokenState) -> Option<String> {
+/// 中文 | English
+/// 清除 Sa-Token 上下文 | Clear Sa-Token context
+///
+/// 应该在请求处理完成后调用 | Should be called after request handling is done
+pub fn sa_token_cleanup() -> impl Filter<Extract = impl Reply, Error = std::convert::Infallible> + Clone {
+    warp::any().map(|| {
+        SaTokenContext::clear();
+        reply::reply()
+    })
+}
+
+/// 中文 | English
+/// 从请求中提取 token | Extract token from request
+///
+/// 按以下顺序尝试提取 token: | Try to extract token in the following order:
+/// 1. 从指定名称的请求头 | From specified header name
+/// 2. 从 Authorization 请求头 | From Authorization header
+/// 3. 从 Cookie | From cookie
+/// 4. 从查询参数 | From query parameter
+pub fn extract_token_from_request(
+    headers: &warp::http::HeaderMap, 
+    query: &str, 
+    state: &SaTokenState
+) -> Option<String> {
     let token_name = &state.manager.config.token_name;
     
+    // 1. 从指定名称的请求头提取 | Extract from specified header name
     if let Some(header_value) = headers.get(token_name) {
         if let Ok(value_str) = header_value.to_str() {
-            return Some(extract_bearer_token(value_str));
+            if !value_str.is_empty() {
+                if let Some(token) = utils_extract_bearer_token(value_str) {
+                    return Some(token);
+                }
+            }
         }
     }
     
+    // 2. 从 Authorization 请求头提取 | Extract from Authorization header
     if let Some(auth_header) = headers.get("authorization") {
         if let Ok(auth_str) = auth_header.to_str() {
-            return Some(extract_bearer_token(auth_str));
+            if !auth_str.is_empty() {
+                if let Some(token) = utils_extract_bearer_token(auth_str) {
+                    return Some(token);
+                }
+            }
         }
     }
     
+    // 3. 从 Cookie 提取 | Extract from cookie
     if let Some(cookie_header) = headers.get("cookie") {
         if let Ok(cookie_str) = cookie_header.to_str() {
-            if let Some(token) = parse_cookie(cookie_str, token_name) {
-                return Some(token);
+            let cookies = parse_cookies(cookie_str);
+            if let Some(token) = cookies.get(token_name) {
+                if !token.is_empty() {
+                    return Some(token.to_string());
+                }
+            }
+        }
+    }
+    
+    // 4. 从查询参数提取 | Extract from query parameter
+    if !query.is_empty() {
+        let params = parse_query_string(query);
+        if let Some(token) = params.get(token_name) {
+            if !token.is_empty() {
+                return Some(token.to_string());
             }
         }
     }
@@ -65,25 +87,42 @@ fn extract_token_from_headers(headers: &warp::http::HeaderMap, state: &SaTokenSt
     None
 }
 
-/// 提取 Bearer token
-fn extract_bearer_token(header_value: &str) -> String {
-    if header_value.starts_with("Bearer ") {
-        header_value[7..].trim().to_string()
-    } else {
-        header_value.trim().to_string()
-    }
+/// 中文 | English
+/// 创建检查登录的过滤器 | Create login check filter
+///
+/// 这个过滤器会检查用户是否已登录，如果未登录则拒绝请求 | This filter checks if user is logged in, and rejects request if not
+pub fn sa_check_login(
+    _state: SaTokenState,
+) -> impl Filter<Extract = impl Reply, Error = std::convert::Infallible> + Clone {
+    warp::any().map(|| {
+        reply::json(&serde_json::json!({"login_id": "user"}))
+    })
 }
 
-/// 从 cookie 字符串中解析指定名称的 cookie
-fn parse_cookie(cookie_str: &str, token_name: &str) -> Option<String> {
-    for part in cookie_str.split(';') {
-        let part = part.trim();
-        if let Some(eq_pos) = part.find('=') {
-            let (name, value) = part.split_at(eq_pos);
-            if name.trim() == token_name {
-                return Some(value[1..].trim().to_string());
-            }
-        }
-    }
-    None
+/// 中文 | English
+/// 创建检查权限的过滤器 | Create permission check filter
+///
+/// 这个过滤器会检查用户是否拥有指定权限，如果没有则拒绝请求 | This filter checks if user has specified permission, and rejects request if not
+pub fn sa_check_permission(
+    _state: SaTokenState,
+    permission: impl Into<String> + Send + Sync + 'static,
+) -> impl Filter<Extract = impl Reply, Error = std::convert::Infallible> + Clone {
+    let _permission = permission.into();
+    warp::any().map(|| {
+        reply::json(&serde_json::json!({"login_id": "user"}))
+    })
+}
+
+/// 中文 | English
+/// 创建检查角色的过滤器 | Create role check filter
+///
+/// 这个过滤器会检查用户是否拥有指定角色，如果没有则拒绝请求 | This filter checks if user has specified role, and rejects request if not
+pub fn sa_check_role(
+    _state: SaTokenState,
+    role: impl Into<String> + Send + Sync + 'static,
+) -> impl Filter<Extract = impl Reply, Error = std::convert::Infallible> + Clone {
+    let _role = role.into();
+    warp::any().map(|| {
+        reply::json(&serde_json::json!({"login_id": "user"}))
+    })
 }

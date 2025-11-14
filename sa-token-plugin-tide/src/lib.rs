@@ -19,25 +19,38 @@
 //! 
 //! ```toml
 //! [dependencies]
-//! sa-token-plugin-tide = "0.1.5"
+//! sa-token-plugin-tide = "0.1.6"
 //! ```
 //! 
 //! ```rust,ignore
+//! use std::sync::Arc;
 //! use sa_token_plugin_tide::*;
 //! 
 //! #[async_std::main]
 //! async fn main() -> tide::Result<()> {
 //!     let storage = Arc::new(MemoryStorage::new());
 //!     
-//!     SaTokenConfig::builder()
+//!     // 创建 Sa-Token 状态 | Create Sa-Token state
+//!     let state = SaTokenState::builder()
 //!         .token_name("Authorization")
 //!         .timeout(7200)
 //!         .storage(storage)
 //!         .build();
 //!     
 //!     let mut app = tide::new();
+//!     
+//!     // 公共路由 | Public routes
 //!     app.at("/login").post(login_handler);
-//!     app.at("/user").get(user_info_handler);
+//!     
+//!     // 需要登录的路由 | Routes requiring login
+//!     app.at("/user")
+//!         .with(SaCheckLoginMiddleware::new(state.clone()))
+//!         .get(user_info_handler);
+//!     
+//!     // 需要特定权限的路由 | Routes requiring specific permission
+//!     app.at("/admin")
+//!         .with(SaCheckPermissionMiddleware::new(state.clone(), "admin:access"))
+//!         .get(admin_handler);
 //!     
 //!     app.listen("127.0.0.1:8080").await?;
 //!     Ok(())
@@ -48,7 +61,7 @@ pub mod adapter;
 pub mod extractor;
 pub mod middleware;
 pub mod layer;
-mod state;
+pub mod state;
 
 // 重新导出核心功能 | Re-export core functionalities
 pub use sa_token_core::{self, SaTokenManager, StpUtil, SaTokenConfig, TokenValue, TokenInfo, 
@@ -76,7 +89,10 @@ pub use sa_token_storage_database::*;
 // 重新导出本模块的适配器 | Re-export adapters from this module
 pub use adapter::*;
 pub use extractor::*;
-pub use middleware::*;
-pub use layer::SaTokenLayer;
+pub use middleware::{
+    AuthMiddleware, PermissionMiddleware, 
+    SaCheckLoginMiddleware, SaCheckPermissionMiddleware, SaCheckRoleMiddleware
+};
+pub use layer::{SaTokenLayer, extract_token_from_request};
 pub use state::{SaTokenState, SaTokenStateBuilder};
 

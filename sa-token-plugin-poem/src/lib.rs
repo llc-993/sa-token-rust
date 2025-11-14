@@ -57,6 +57,8 @@
 pub mod adapter;
 pub mod middleware;
 pub mod extractor;
+pub mod layer;
+pub mod state;
 
 // ============================================================================
 // Poem 框架集成（本插件特有）
@@ -64,6 +66,8 @@ pub mod extractor;
 pub use middleware::{SaTokenMiddleware, SaCheckLoginMiddleware};
 pub use extractor::{SaTokenExtractor, OptionalSaTokenExtractor, LoginIdExtractor};
 pub use adapter::{PoemRequestAdapter, PoemResponseAdapter};
+pub use layer::SaTokenLayer;
+pub use state::{SaTokenState, SaTokenStateBuilder};
 
 // ============================================================================
 // 重新导出核心功能（sa-token-core）
@@ -149,111 +153,3 @@ pub use sa_token_storage_redis::RedisStorage;
 #[cfg(feature = "database")]
 pub use sa_token_storage_database::DatabaseStorage;
 
-use std::sync::Arc;
-
-/// Poem 应用状态
-#[derive(Clone)]
-pub struct SaTokenState {
-    pub manager: Arc<SaTokenManager>,
-}
-
-impl SaTokenState {
-    /// 从存储和配置创建状态
-    pub fn new(storage: Arc<dyn SaStorage>, config: SaTokenConfig) -> Self {
-        Self {
-            manager: Arc::new(SaTokenManager::new(storage, config)),
-        }
-    }
-    
-    /// 从 SaTokenManager 创建状态
-    pub fn from_manager(manager: SaTokenManager) -> Self {
-        // 自动初始化全局 StpUtil
-        sa_token_core::StpUtil::init_manager(manager.clone());
-        
-        Self {
-            manager: Arc::new(manager),
-        }
-    }
-    
-    /// 使用构建器模式创建状态
-    /// 
-    /// # 示例
-    /// ```rust,ignore
-    /// use std::sync::Arc;
-    /// use sa_token_plugin_poem::SaTokenState;
-    /// use sa_token_storage_memory::MemoryStorage;
-    /// 
-    /// let state = SaTokenState::builder()
-    ///     .storage(Arc::new(MemoryStorage::new()))
-    ///     .token_name("Authorization")
-    ///     .timeout(7200)
-    ///     .build();
-    /// ```
-    pub fn builder() -> SaTokenStateBuilder {
-        SaTokenStateBuilder::default()
-    }
-}
-
-/// SaTokenState 构建器
-#[derive(Default)]
-pub struct SaTokenStateBuilder {
-    config_builder: sa_token_core::config::SaTokenConfigBuilder,
-}
-
-impl SaTokenStateBuilder {
-    pub fn token_name(mut self, name: impl Into<String>) -> Self {
-        self.config_builder = self.config_builder.token_name(name);
-        self
-    }
-    
-    pub fn timeout(mut self, timeout: i64) -> Self {
-        self.config_builder = self.config_builder.timeout(timeout);
-        self
-    }
-    
-    pub fn active_timeout(mut self, timeout: i64) -> Self {
-        self.config_builder = self.config_builder.active_timeout(timeout);
-        self
-    }
-    
-    /// 设置是否开启自动续签
-    pub fn auto_renew(mut self, enabled: bool) -> Self {
-        self.config_builder = self.config_builder.auto_renew(enabled);
-        self
-    }
-    
-    pub fn is_concurrent(mut self, concurrent: bool) -> Self {
-        self.config_builder = self.config_builder.is_concurrent(concurrent);
-        self
-    }
-    
-    pub fn is_share(mut self, share: bool) -> Self {
-        self.config_builder = self.config_builder.is_share(share);
-        self
-    }
-    
-    pub fn token_style(mut self, style: sa_token_core::config::TokenStyle) -> Self {
-        self.config_builder = self.config_builder.token_style(style);
-        self
-    }
-    
-    pub fn token_prefix(mut self, prefix: impl Into<String>) -> Self {
-        self.config_builder = self.config_builder.token_prefix(prefix);
-        self
-    }
-    
-    pub fn jwt_secret_key(mut self, key: impl Into<String>) -> Self {
-        self.config_builder = self.config_builder.jwt_secret_key(key);
-        self
-    }
-    
-    pub fn storage(mut self, storage: Arc<dyn SaStorage>) -> Self {
-        self.config_builder = self.config_builder.storage(storage);
-        self
-    }
-    
-    pub fn build(self) -> SaTokenState {
-        let manager = self.config_builder.build();
-        SaTokenState::from_manager(manager)
-    }
-}

@@ -124,6 +124,20 @@ impl StpUtil {
         Self::get_manager().login(login_id.to_login_id()).await
     }
     
+    /// 登录并设置额外数据 | Login with extra data
+    /// 
+    /// # 参数 | Arguments
+    /// * `login_id` - 登录ID | Login ID
+    /// * `extra_data` - 额外数据 | Extra data
+    pub async fn login_with_extra(
+        login_id: impl LoginId,
+        extra_data: serde_json::Value,
+    ) -> SaTokenResult<TokenValue> {
+        let token = Self::get_manager().login(login_id.to_login_id()).await?;
+        Self::set_extra_data(&token, extra_data).await?;
+        Ok(token)
+    }
+    
     /// 会话登录（带 manager 参数的版本，向后兼容）
     pub async fn login_with_manager(
         manager: &SaTokenManager,
@@ -735,6 +749,139 @@ impl StpUtil {
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
         
         Ok(())
+    }
+    
+    // ==================== 额外数据操作 | Extra Data Operations ====================
+    
+    /// 设置 Token 的额外数据 | Set extra data for token
+    /// 
+    /// # 参数 | Arguments
+    /// * `token` - Token值 | Token value
+    /// * `extra_data` - 额外数据 | Extra data
+    pub async fn set_extra_data(
+        token: &TokenValue,
+        extra_data: serde_json::Value,
+    ) -> SaTokenResult<()> {
+        let manager = Self::get_manager();
+        let mut token_info = manager.get_token_info(token).await?;
+        token_info.extra_data = Some(extra_data);
+        
+        let key = format!("sa:token:{}", token.as_str());
+        let value = serde_json::to_string(&token_info)
+            .map_err(|e| SaTokenError::SerializationError(e))?;
+        
+        manager.storage.set(&key, &value, manager.config.timeout_duration()).await
+            .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        
+        Ok(())
+    }
+    
+    /// 获取 Token 的额外数据 | Get extra data from token
+    /// 
+    /// # 参数 | Arguments
+    /// * `token` - Token值 | Token value
+    pub async fn get_extra_data(token: &TokenValue) -> SaTokenResult<Option<serde_json::Value>> {
+        let manager = Self::get_manager();
+        let token_info = manager.get_token_info(token).await?;
+        Ok(token_info.extra_data)
+    }
+    
+    // ==================== 链式调用 | Chain Call ====================
+    
+    /// 创建 Token 构建器，用于链式调用 | Create token builder for chain calls
+    /// 
+    /// # 示例 | Example
+    /// ```rust,ignore
+    /// use serde_json::json;
+    /// 
+    /// // 链式调用示例
+    /// let token = StpUtil::builder("user_123")
+    ///     .extra_data(json!({"ip": "192.168.1.1"}))
+    ///     .device("pc")
+    ///     .login_type("admin")
+    ///     .login()
+    ///     .await?;
+    /// ```
+    pub fn builder(login_id: impl LoginId) -> TokenBuilder {
+        TokenBuilder::new(login_id.to_login_id())
+    }
+}
+
+/// Token 构建器 - 支持链式调用 | Token Builder - Supports chain calls
+pub struct TokenBuilder {
+    login_id: String,
+    extra_data: Option<serde_json::Value>,
+    device: Option<String>,
+    login_type: Option<String>,
+}
+
+impl TokenBuilder {
+    /// 创建新的 Token 构建器 | Create new token builder
+    pub fn new(login_id: String) -> Self {
+        Self {
+            login_id,
+            extra_data: None,
+            device: None,
+            login_type: None,
+        }
+    }
+    
+    /// 设置额外数据 | Set extra data
+    pub fn extra_data(mut self, data: serde_json::Value) -> Self {
+        self.extra_data = Some(data);
+        self
+    }
+    
+    /// 设置设备信息 | Set device info
+    pub fn device(mut self, device: impl Into<String>) -> Self {
+        self.device = Some(device.into());
+        self
+    }
+    
+    /// 设置登录类型 | Set login type
+    pub fn login_type(mut self, login_type: impl Into<String>) -> Self {
+        self.login_type = Some(login_type.into());
+        self
+    }
+    
+    /// 执行登录操作 | Execute login
+    /// 
+    /// 如果不提供 login_id 参数，则使用构建器中的 login_id
+    pub async fn login<T: LoginId>(self, login_id: Option<T>) -> SaTokenResult<TokenValue> {
+        let manager = StpUtil::get_manager();
+        
+        // 登录获取 token，使用传入的 login_id 或构建器中的 login_id
+        let final_login_id = match login_id {
+            Some(id) => id.to_login_id(),
+            None => self.login_id,
+        };
+        let token = manager.login(final_login_id).await?;
+        
+        // 获取 token 信息并修改
+        let mut token_info = manager.get_token_info(&token).await?;
+        
+        // 设置额外属性
+        if let Some(data) = self.extra_data {
+            token_info.extra_data = Some(data);
+        }
+        
+        if let Some(device) = self.device {
+            token_info.device = Some(device);
+        }
+        
+        if let Some(login_type) = self.login_type {
+            token_info.login_type = login_type;
+        }
+        
+        // 保存更新后的 token 信息
+        let key = format!("sa:token:{}", token.as_str());
+        let value = serde_json::to_string(&token_info)
+            .map_err(|e| SaTokenError::SerializationError(e))?;
+        
+        manager.storage.set(&key, &value, manager.config.timeout_duration()).await
+            .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        
+        Ok(token)
     }
 }
 

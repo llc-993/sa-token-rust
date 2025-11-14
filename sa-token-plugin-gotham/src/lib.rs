@@ -24,19 +24,46 @@
 //! 
 //! ```rust,ignore
 //! use sa_token_plugin_gotham::*;
+//! use gotham::router::Router;
+//! use gotham::pipeline::{new_pipeline, single_pipeline};
+//! use std::sync::Arc;
 //! 
 //! #[tokio::main]
 //! async fn main() {
 //!     let storage = Arc::new(MemoryStorage::new());
-//!     
-//!     SaTokenConfig::builder()
-//!         .token_name("Authorization")
-//!         .timeout(7200)
+//!     let state = SaTokenState::builder()
 //!         .storage(storage)
+//!         .timeout(7200)
 //!         .build();
 //!     
+//!     // 方式1：使用基础中间件 + 手动检查
+//!     let (chain, pipelines) = single_pipeline(
+//!         new_pipeline()
+//!             .add(SaTokenMiddleware::new(state.clone()))
+//!             .build()
+//!     );
+//!     
+//!     // 方式2：使用登录检查中间件
+//!     let (chain, pipelines) = single_pipeline(
+//!         new_pipeline()
+//!             .add(SaCheckLoginMiddleware::new(state.clone()))
+//!             .build()
+//!     );
+//!     
+//!     // 方式3：使用权限检查中间件
+//!     let (chain, pipelines) = single_pipeline(
+//!         new_pipeline()
+//!             .add(SaCheckPermissionMiddleware::new(state.clone(), "admin"))
+//!             .build()
+//!     );
+//!     
+//!     let router = Router::new(chain, pipelines, |route| {
+//!         route.get("/api/user").to(user_handler);
+//!         route.get("/api/admin").to(admin_handler);
+//!     });
+//!     
 //!     let addr = "127.0.0.1:8080";
-//!     gotham::start(addr, || Ok(router()));
+//!     gotham::start(addr, || Ok(router));
 //! }
 //! ```
 

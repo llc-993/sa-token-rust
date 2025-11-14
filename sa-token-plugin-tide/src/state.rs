@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use sa_token_adapter::storage::SaStorage;
-use sa_token_core::{SaTokenManager, SaTokenConfig, StpUtil};
+use sa_token_core::{SaTokenManager, SaTokenConfig, StpUtil, SaTokenListener};
 
 /// 中文 | English
 /// Sa-Token 状态 | Sa-Token State
@@ -43,6 +43,7 @@ impl SaTokenState {
 #[derive(Default)]
 pub struct SaTokenStateBuilder {
     config_builder: sa_token_core::config::SaTokenConfigBuilder,
+    listeners: Vec<Arc<dyn SaTokenListener>>,
 }
 
 impl SaTokenStateBuilder {
@@ -123,9 +124,29 @@ impl SaTokenStateBuilder {
     }
     
     /// 中文 | English
+    /// 添加事件监听器 | Add event listener
+    pub fn listener(mut self, listener: Arc<dyn SaTokenListener>) -> Self {
+        self.listeners.push(listener);
+        self
+    }
+    
+    /// 中文 | English
+    /// 添加多个事件监听器 | Add multiple event listeners
+    pub fn listeners(mut self, listeners: Vec<Arc<dyn SaTokenListener>>) -> Self {
+        self.listeners.extend(listeners);
+        self
+    }
+    
+    /// 中文 | English
     /// 构建 SaTokenState | Build SaTokenState
     pub fn build(self) -> SaTokenState {
         let manager = self.config_builder.build();
+        
+        // 注册事件监听器 | Register event listeners
+        for listener in self.listeners {
+            manager.event_bus().register(listener);
+        }
+        
         SaTokenState::from_manager(manager)
     }
 }

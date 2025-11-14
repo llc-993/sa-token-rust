@@ -9,6 +9,8 @@ use uuid::Uuid;
 use crate::config::{TokenStyle, SaTokenConfig};
 use crate::token::TokenValue;
 use crate::token::jwt::{JwtManager, JwtClaims, JwtAlgorithm};
+use chrono::Utc;
+use sha2::{Sha256, Digest};
 
 pub struct TokenGenerator;
 
@@ -65,6 +67,13 @@ impl TokenGenerator {
     /// * `config` - Sa-token configuration | Sa-token 配置
     /// * `login_id` - User login ID | 用户登录ID
     pub fn generate_jwt(config: &SaTokenConfig, login_id: &str) -> TokenValue {
+        // 如果 login_id 为空，则使用时间戳作为 login_id
+        let effective_login_id = if login_id.is_empty() {
+            Utc::now().timestamp_millis().to_string()
+        } else {
+            login_id.to_string()
+        };
+        
         // Get JWT secret key | 获取 JWT 密钥
         let secret = config.jwt_secret_key.as_ref()
             .expect("JWT secret key is required when using JWT token style");
@@ -86,7 +95,7 @@ impl TokenGenerator {
         }
         
         // Create claims | 创建声明
-        let mut claims = JwtClaims::new(login_id);
+        let mut claims = JwtClaims::new(effective_login_id);
         
         // Set expiration | 设置过期时间
         if config.timeout > 0 {
@@ -128,12 +137,16 @@ impl TokenGenerator {
     ///
     /// * `login_id` - User login ID | 用户登录ID
     pub fn generate_hash(login_id: &str) -> TokenValue {
-        use sha2::{Sha256, Digest};
-        use chrono::Utc;
+        // 如果 login_id 为空，使用时间戳代替
+        let login_id_value = if login_id.is_empty() {
+            Utc::now().timestamp_millis().to_string()
+        } else {
+            login_id.to_string()
+        };
         
         let timestamp = Utc::now().timestamp_millis();
         let uuid = Uuid::new_v4();
-        let data = format!("{}{}{}", login_id, timestamp, uuid);
+        let data = format!("{}{}{}", login_id_value, timestamp, uuid);
         
         let mut hasher = Sha256::new();
         hasher.update(data.as_bytes());
