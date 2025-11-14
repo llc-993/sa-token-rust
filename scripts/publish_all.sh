@@ -3,7 +3,7 @@
 set -euo pipefail
 
 WORKSPACE_ROOT="/Users/m1pro/rustproject/sa-token-rust"
-SLEEP_SECONDS="${SLEEP_SECONDS:-30}"
+SLEEP_SECONDS="${SLEEP_SECONDS:-5}"
 
 publish() {
   local manifest="$1"
