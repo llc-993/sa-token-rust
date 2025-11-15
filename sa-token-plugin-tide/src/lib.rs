@@ -19,7 +19,7 @@
 //! 
 //! ```toml
 //! [dependencies]
-//! sa-token-plugin-tide = "0.1.6"
+//! sa-token-plugin-tide = "0.1.7"
 //! ```
 //! 
 //! ```rust,ignore

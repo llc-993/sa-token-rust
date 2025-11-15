@@ -13,9 +13,9 @@ Warp framework integration for sa-token-rust.
 
 ```toml
 [dependencies]
-sa-token-plugin-warp = "0.1.2"
-sa-token-core = "0.1.2"
+sa-token-plugin-warp = { version = "0.1.7", features = ["redis"] }
 warp = "0.3"
+tokio = { version = "1", features = ["full"] }
 ```
 
 ## Quick Start

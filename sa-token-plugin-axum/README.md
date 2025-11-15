@@ -13,10 +13,8 @@ Axum framework integration for sa-token-rust.
 
 ```toml
 [dependencies]
-sa-token-plugin-axum = "0.1.2"
-sa-token-core = "0.1.2"
-sa-token-storage-memory = "0.1.2"
-axum = "0.7"
+sa-token-plugin-axum = { version = "0.1.7", features = ["redis"] }
+axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 ```
 

@@ -15,9 +15,9 @@
 //! 
 //! ```toml
 //! [dependencies]
-//! sa-token-plugin-warp = "0.1.6"  # 默认使用内存存储 | Default using memory storage
+//! sa-token-plugin-warp = "0.1.7"  # 默认使用内存存储 | Default using memory storage
 //! # 或者使用 Redis 存储 | Or use Redis storage
-//! sa-token-plugin-warp = { version = "0.1.6", features = ["redis"] }
+//! sa-token-plugin-warp = { version = "0.1.7", features = ["redis"] }
 //! ```
 //! 
 //! ## 使用示例 | Usage Example

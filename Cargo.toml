@@ -12,8 +12,8 @@ categories.workspace = true
 description = "A powerful Rust authentication and authorization framework"
 
 [dependencies]
-sa-token-core = { version = "0.1.6", path = "./sa-token-core" }
-sa-token-storage-memory = { version = "0.1.6", path = "./sa-token-storage-memory" }
+sa-token-core = { version = "0.1.7", path = "./sa-token-core" }
+sa-token-storage-memory = { version = "0.1.7", path = "./sa-token-storage-memory" }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
@@ -85,7 +85,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["金书记"]
@@ -134,3 +134,20 @@ urlencoding = "2.1"
 
 # 正则表达式
 regex = "1.10"
+
+[patch.crates-io]
+sa-token-core = { path = "sa-token-core" }
+sa-token-adapter = { path = "sa-token-adapter" }
+sa-token-macro = { path = "sa-token-macro" }
+sa-token-storage-memory = { path = "sa-token-storage-memory" }
+sa-token-storage-redis = { path = "sa-token-storage-redis" }
+sa-token-storage-database = { path = "sa-token-storage-database" }
+sa-token-plugin-actix-web = { path = "sa-token-plugin-actix-web" }
+sa-token-plugin-axum = { path = "sa-token-plugin-axum" }
+sa-token-plugin-gotham = { path = "sa-token-plugin-gotham" }
+sa-token-plugin-ntex = { path = "sa-token-plugin-ntex" }
+sa-token-plugin-poem = { path = "sa-token-plugin-poem" }
+sa-token-plugin-rocket = { path = "sa-token-plugin-rocket" }
+sa-token-plugin-salvo = { path = "sa-token-plugin-salvo" }
+sa-token-plugin-tide = { path = "sa-token-plugin-tide" }
+sa-token-plugin-warp = { path = "sa-token-plugin-warp" }

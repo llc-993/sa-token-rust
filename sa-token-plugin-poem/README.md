@@ -13,9 +13,9 @@ Poem framework integration for sa-token-rust.
 
 ```toml
 [dependencies]
-sa-token-plugin-poem = "0.1.2"
-sa-token-core = "0.1.2"
-poem = "1.3"
+sa-token-plugin-poem = { version = "0.1.7", features = ["redis"] }
+poem = "3.1"
+tokio = { version = "1", features = ["full"] }
 ```
 
 ## Quick Start
