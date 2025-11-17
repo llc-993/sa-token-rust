@@ -28,7 +28,7 @@ publish "$WORKSPACE_ROOT/sa-token-plugin-rocket/Cargo.toml"
 publish "$WORKSPACE_ROOT/sa-token-plugin-salvo/Cargo.toml"
 publish "$WORKSPACE_ROOT/sa-token-plugin-tide/Cargo.toml"
 publish "$WORKSPACE_ROOT/sa-token-plugin-warp/Cargo.toml"
-publish "$WORKSPACE_ROOT/sa-token-rust/Cargo.toml"
+publish "$WORKSPACE_ROOT/Cargo.toml"
 
 echo "All crates published."
 
