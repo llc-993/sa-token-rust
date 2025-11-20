@@ -228,10 +228,7 @@ impl SaTokenStateBuilder {
     
     pub fn build(self) -> Data<SaTokenState> {
         let manager = self.config_builder.build();
-        
-        // 自动初始化全局 StpUtil
-        sa_token_core::StpUtil::init_manager(manager.clone());
-        
+                
         Data::new(SaTokenState {
             manager: Arc::new(manager),
         })
