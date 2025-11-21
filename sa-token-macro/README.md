@@ -13,8 +13,8 @@ Procedural macros for sa-token-rust.
 
 ```toml
 [dependencies]
-sa-token-macro = "0.1.2"
-sa-token-core = "0.1.2"
+sa-token-macro = "0.1.9"
+sa-token-core = "0.1.9"
 ```
 
 ## Macros
