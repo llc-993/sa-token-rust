@@ -14,13 +14,7 @@ use actix_web::{
     web, App, HttpServer, Responder,
     middleware::Logger,
 };
-use sa_token_plugin_actix_web::{
-    SaTokenState, SaTokenMiddleware,
-    sa_check_login, sa_check_permission, sa_check_role,
-    sa_ignore, sa_check_permissions_and,
-    LoginIdExtractor,
-};
-use sa_token_core::StpUtil;
+use sa_token_plugin_actix_web::*;
 
 mod auth;
 mod stp_util_demo;
@@ -154,6 +148,8 @@ async fn init_test_permissions() {
             "user:create".to_string(),
             "user:update".to_string(),
             "user:delete".to_string(),
+            "user:read".to_string(),
+            "user:write".to_string(),
             "system:config".to_string(),
             "system:log".to_string(),
             "admin:*".to_string(),

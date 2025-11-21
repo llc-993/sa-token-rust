@@ -4,10 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sa-token-core = { path = "../../sa-token-core" }
 sa-token-plugin-poem = { path = "../../sa-token-plugin-poem" }
-sa-token-storage-memory = { path = "../../sa-token-storage-memory" }
-sa-token-macro = { path = "../../sa-token-macro" }
 poem = "3.0"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

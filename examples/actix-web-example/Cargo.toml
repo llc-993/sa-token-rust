@@ -5,16 +5,12 @@ edition = "2021"
 publish = false
 
 [features]
-default = ["memory"]
-memory = []
-redis = ["sa-token-storage-redis"]
+default = []
+redis = ["sa-token-plugin-actix-web/redis", "sa-token-storage-redis"]
 
 [dependencies]
-sa-token-plugin-actix-web = { path = "../../sa-token-plugin-actix-web" }
-sa-token-storage-memory = { path = "../../sa-token-storage-memory" }
+sa-token-plugin-actix-web = { path = "../../sa-token-plugin-actix-web", features = ["memory"] }
 sa-token-storage-redis = { path = "../../sa-token-storage-redis", optional = true }
-sa-token-core = { path = "../../sa-token-core" }
-sa-token-macro = { path = "../../sa-token-macro" }
 
 actix-web = "4.11.0"
 actix-rt = "2.9"

@@ -132,9 +132,9 @@ dependencies = [
 
 [[package]]
 name = "actix-web"
-version = "4.11.0"
+version = "4.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a597b77b5c6d6a1e1097fddde329a83665e25c5437c696a3a9a4aa514a614dea"
+checksum = "2233f53f6cb18ae038ce1f0713ca0c72ca0c4b71fe9aaeb59924ce2c89c6dd85"
 dependencies = [
  "actix-codec",
  "actix-http",
@@ -167,7 +167,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "smallvec",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "time 0.3.44",
  "tracing",
  "url",
@@ -653,9 +653,9 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "axum"
-version = "0.8.6"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a18ed336352031311f4e0b4dd2ff392d4fbb370777c9d18d7fc9d7359f73871"
+checksum = "5b098575ebe77cb6d14fc7f32749631a6e44edbef6b796f89b020e99ba20d425"
 dependencies = [
  "axum-core",
  "bytes",
@@ -865,9 +865,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.10.1"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
+checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
 name = "bytestring"
@@ -1769,9 +1769,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.16.0"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5419bdc4f6a9207fbeba6d11b604d481addf78ecd10c11ad51e76c2f6482748d"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 
 [[package]]
 name = "headers"
@@ -2206,9 +2206,9 @@ checksum = "e8a5a9a0ff0086c7a148acb942baaabeadf9504d10400b5a05645853729b9cd2"
 
 [[package]]
 name = "indexmap"
-version = "2.12.0"
+version = "2.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6717a8d2a5a929a1a2eb43a12812498ed141a0bcfb7e8f7844fbdbe4303bba9f"
+checksum = "0ad4bb2b565bca0645f4d68c5c9af97fba094e9791da685bf83cb5f3ce74acf2"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -2568,9 +2568,9 @@ dependencies = [
 
 [[package]]
 name = "ntex"
-version = "2.16.0"
+version = "2.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4b41d1af2e11a7c29499395c2505550507749c35b29fa4a31234130abdb2285"
+checksum = "483c0641500f9424a638bcc28f41d8a8f243351f222736a0e6814996ea105c74"
 dependencies = [
  "base64 0.22.1",
  "bitflags 2.10.0",
@@ -2607,9 +2607,9 @@ dependencies = [
 
 [[package]]
 name = "ntex-bytes"
-version = "0.1.30"
+version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53d23b86ef2f4a947e29e959a61bdae71c9d52a80df02936a9992bc6dbda9ddb"
+checksum = "da68b58d622475c69e4f19e33d12f90b4acaff1939f134e09e9318ad8bc6fa74"
 dependencies = [
  "bitflags 2.10.0",
  "bytes",
@@ -2691,9 +2691,9 @@ dependencies = [
 
 [[package]]
 name = "ntex-net"
-version = "2.8.1"
+version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a53c65509e4e3abf6490514e98a570d4cbcdbf18628e9569a02cc1d47c1e29b9"
+checksum = "8954ded069d59412df14b4c4804c4c6b45631300fcd13376c08aa19b4043d3fd"
 dependencies = [
  "bitflags 2.10.0",
  "cfg-if 1.0.4",
@@ -2723,9 +2723,9 @@ dependencies = [
 
 [[package]]
 name = "ntex-rt"
-version = "0.4.32"
+version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c30a11a3017f0bf2ea00d0bd6ba8f69e52906aa8c1f894a060341056d8b1eef8"
+checksum = "86073cb8a4ae37ca4d4a10a50fb8fc01e7a40973567d3e4f1dcbfb37039a97ce"
 dependencies = [
  "async-channel 2.5.0",
  "futures-timer",
@@ -3693,7 +3693,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 
 [[package]]
 name = "sa-token-adapter"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3705,7 +3705,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-core"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3727,7 +3727,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-macro"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3737,7 +3737,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-actix-web"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "actix-web",
  "async-trait",
@@ -3756,7 +3756,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-axum"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "axum",
@@ -3778,7 +3778,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-gotham"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "gotham",
@@ -3801,7 +3801,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-ntex"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3820,7 +3820,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-poem"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "poem",
@@ -3839,7 +3839,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-rocket"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "rocket",
@@ -3858,7 +3858,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-salvo"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3877,7 +3877,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-tide"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-std",
  "async-trait",
@@ -3897,7 +3897,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-plugin-warp"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "http 1.3.1",
@@ -3917,7 +3917,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-rust"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3930,7 +3930,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-storage-database"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "sa-token-adapter",
@@ -3940,7 +3940,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-storage-memory"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3951,7 +3951,7 @@ dependencies = [
 
 [[package]]
 name = "sa-token-storage-redis"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "redis",
@@ -5230,9 +5230,9 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "value-bag"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "943ce29a8a743eb10d6082545d861b24f9d1b160b7d741e0f2cdf726bec909c5"
+checksum = "7ba6f5989077681266825251a52748b8c1d8a4ad098cc37e440103d0ea717fc0"
 dependencies = [
  "value-bag-serde1",
  "value-bag-sval2",
@@ -5240,20 +5240,20 @@ dependencies = [
 
 [[package]]
 name = "value-bag-serde1"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35540706617d373b118d550d41f5dfe0b78a0c195dc13c6815e92e2638432306"
+checksum = "16530907bfe2999a1773ca5900a65101e092c70f642f25cc23ca0c43573262c5"
 dependencies = [
  "erased-serde",
- "serde",
+ "serde_core",
  "serde_fmt",
 ]
 
 [[package]]
 name = "value-bag-sval2"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fe7e140a2658cc16f7ee7a86e413e803fc8f9b5127adc8755c19f9fefa63a52"
+checksum = "d00ae130edd690eaa877e4f40605d534790d1cf1d651e7685bd6a144521b251f"
 dependencies = [
  "sval",
  "sval_buffer",
@@ -5838,18 +5838,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.27"
+version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0894878a5fa3edfd6da3f88c4805f4c8558e2b996227a3d864f47fe11e38282c"
+checksum = "43fa6694ed34d6e57407afbccdeecfa268c470a7d2a5b0cf49ce9fcc345afb90"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.27"
+version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88d2b8d9c68ad2b9e4340d7832716a4d21a22a1154777ad56ea55c51a9cf3831"
+checksum = "c640b22cd9817fae95be82f0d2f90b11f7605f6c319d16705c459b27ac2cbc26"
 dependencies = [
  "proc-macro2",
  "quote",

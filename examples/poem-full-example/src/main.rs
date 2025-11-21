@@ -16,13 +16,7 @@ use poem::{
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
-use sa_token_core::{SaTokenConfig, StpUtil};
-use sa_token_storage_memory::MemoryStorage;
-use sa_token_plugin_poem::{
-    SaTokenState, SaTokenMiddleware, SaTokenExtractor, 
-    LoginIdExtractor,
-};
-use sa_token_core::config::TokenStyle;
+use sa_token_plugin_poem::*;
 
 /// API 响应结构
 #[derive(Debug, Serialize)]
@@ -80,7 +74,6 @@ async fn main() -> Result<(), std::io::Error> {
         .storage(Arc::new(MemoryStorage::new()))
         .token_name("Authorization")
         .timeout(86400)  // 24小时
-        .token_style(TokenStyle::Random64)
         .build();
     
     // StpUtil 已在 build() 时自动初始化
@@ -105,7 +98,7 @@ async fn main() -> Result<(), std::io::Error> {
         .at("/api/admin/config", poem::get(admin_config))
         
         // 应用中间件
-        .with(SaTokenMiddleware::new(sa_token_state.manager.clone()))
+        .with(SaTokenMiddleware::new(sa_token_state.clone()))
         .data(sa_token_state);
     
     tracing::info!("📡 服务器运行在 http://127.0.0.1:3000");

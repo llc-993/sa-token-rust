@@ -19,10 +19,7 @@ use axum::{
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
-use sa_token_core::{SaTokenConfig, SaTokenManager, StpUtil};
-use sa_token_storage_memory::MemoryStorage;
-use sa_token_plugin_axum::SaTokenState;
-use sa_token_macro::*;
+use sa_token_plugin_axum::*;
 
 mod auth;
 mod stp_util_demo;
@@ -30,7 +27,6 @@ mod login_id_demo;
 mod context_demo;
 
 use auth::*;
-use sa_token_core::config::TokenStyle;
 
 /// 应用状态
 #[derive(Clone)]
@@ -53,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
         .storage(Arc::new(MemoryStorage::new()))
         .token_name("Authorization")
         .timeout(86400)  // 24小时
-        .token_style(TokenStyle::Random64)
+        .token_style(sa_token_plugin_axum::TokenStyle::Random64)
         .build();
     
     // StpUtil 已在 build() 时自动初始化

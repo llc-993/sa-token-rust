@@ -4,11 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# sa-token 核心库
-sa-token-core = { path = "../../sa-token-core" }
-sa-token-storage-memory = { path = "../../sa-token-storage-memory" }
+# sa-token 插件（包含所有依赖）
 sa-token-plugin-axum = { path = "../../sa-token-plugin-axum" }
-sa-token-macro = { path = "../../sa-token-macro" }
 
 # Web 框架
 axum = "0.7"

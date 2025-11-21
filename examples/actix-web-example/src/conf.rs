@@ -5,9 +5,7 @@
 
 use std::sync::Arc;
 use anyhow::Result;
-use sa_token_core::{SaTokenManager, SaTokenConfig};
-use sa_token_storage_memory::MemoryStorage;
-use sa_token_core::config::TokenStyle;
+use sa_token_plugin_actix_web::*;
 
 /// Redis配置
 /// Redis Configuration
@@ -38,7 +36,8 @@ pub async fn init_sa_token(redis_config: Option<&RedisConfig>) -> Result<Arc<SaT
     if let Some(_redis_cfg) = redis_config {
         #[cfg(feature = "redis")]
         {
-            use sa_token_storage_redis::{RedisStorage, RedisConfig};
+            use sa_token_plugin_actix_web::RedisStorage;
+            use sa_token_storage_redis::RedisConfig;
             
             let redis_storage = RedisStorage::new(RedisConfig {
                 url: _redis_cfg.url.clone(),

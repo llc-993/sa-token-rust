@@ -3,7 +3,7 @@
 //! StpUtil 演示代码
 //! StpUtil Demo Code
 
-use sa_token_core::StpUtil;
+use sa_token_plugin_actix_web::StpUtil;
 
 /// StpUtil 演示函数
 /// StpUtil Demo Function

@@ -102,15 +102,15 @@ pub enum ApiError {
     InternalError(String),
 }
 
-impl From<sa_token_core::SaTokenError> for ApiError {
-    fn from(err: sa_token_core::SaTokenError) -> Self {
+impl From<sa_token_plugin_actix_web::SaTokenError> for ApiError {
+    fn from(err: sa_token_plugin_actix_web::SaTokenError) -> Self {
         match err {
-            sa_token_core::SaTokenError::NotLogin => {
+            sa_token_plugin_actix_web::SaTokenError::NotLogin => {
                 ApiError::Unauthorized(err.message())
             }
-            sa_token_core::SaTokenError::PermissionDenied
-            | sa_token_core::SaTokenError::PermissionDeniedDetail(_)
-            | sa_token_core::SaTokenError::RoleDenied(_) => {
+            sa_token_plugin_actix_web::SaTokenError::PermissionDenied
+            | sa_token_plugin_actix_web::SaTokenError::PermissionDeniedDetail(_)
+            | sa_token_plugin_actix_web::SaTokenError::RoleDenied(_) => {
                 ApiError::Forbidden(err.message())
             }
             _ => ApiError::InternalError(format!("Authentication error: {}", err)),
@@ -183,8 +183,8 @@ pub async fn login(
     
     // 获取用户权限和角色（使用 StpUtil）
     // Get user permissions and roles (using StpUtil)
-    let permissions = sa_token_core::StpUtil::get_permissions(user_id).await;
-    let roles = sa_token_core::StpUtil::get_roles(user_id).await;
+    let permissions = sa_token_plugin_actix_web::StpUtil::get_permissions(user_id).await;
+    let roles = sa_token_plugin_actix_web::StpUtil::get_roles(user_id).await;
     
     tracing::info!(
         "✅ 用户 {} 登录成功，权限: {:?}, 角色: {:?}", 

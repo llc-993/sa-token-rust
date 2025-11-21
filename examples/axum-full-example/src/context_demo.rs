@@ -2,7 +2,7 @@
 //
 //! StpUtil 无参数方法演示
 
-use sa_token_core::StpUtil;
+use sa_token_plugin_axum::StpUtil;
 use axum::{response::Json, http::StatusCode};
 use serde_json::json;
 

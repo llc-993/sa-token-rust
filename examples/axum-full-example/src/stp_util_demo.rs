@@ -2,7 +2,7 @@
 //
 //! StpUtil 使用演示
 
-use sa_token_core::StpUtil;
+use sa_token_plugin_axum::StpUtil;
 
 /// 演示 StpUtil 的各种功能
 pub async fn demo_stp_util() -> anyhow::Result<()> {

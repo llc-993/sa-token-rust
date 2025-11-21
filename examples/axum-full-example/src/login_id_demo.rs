@@ -2,7 +2,7 @@
 //
 //! LoginId 多类型支持演示
 
-use sa_token_core::StpUtil;
+use sa_token_plugin_axum::StpUtil;
 
 /// 演示 LoginId 支持多种类型
 pub async fn demo_login_id_types() -> anyhow::Result<()> {

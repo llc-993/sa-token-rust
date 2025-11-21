@@ -13,7 +13,7 @@ Rocket framework integration for sa-token-rust.
 
 ```toml
 [dependencies]
-sa-token-plugin-rocket = { version = "0.1.7", features = ["redis"] }
+sa-token-plugin-rocket = { version = "0.1.8", features = ["redis"] }
 rocket = "0.5"
 ```
 

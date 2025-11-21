@@ -158,7 +158,7 @@ sa-token-rust/
 ```toml
 [dependencies]
 # 一站式包 - 包含核心、宏和存储
-sa-token-plugin-axum = "0.1.7"  # 默认：内存存储
+sa-token-plugin-axum = "0.1.8"  # 默认：内存存储
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 ```
@@ -177,13 +177,13 @@ use sa_token_plugin_axum::*;  // ✨ 你需要的一切！
 **通过 features 选择存储后端：**
 ```toml
 # Redis 存储
-sa-token-plugin-axum = { version = "0.1.7", features = ["redis"] }
+sa-token-plugin-axum = { version = "0.1.8", features = ["redis"] }
 
 # 多个存储后端
-sa-token-plugin-axum = { version = "0.1.7", features = ["memory", "redis"] }
+sa-token-plugin-axum = { version = "0.1.8", features = ["memory", "redis"] }
 
 # 所有存储后端
-sa-token-plugin-axum = { version = "0.1.7", features = ["full"] }
+sa-token-plugin-axum = { version = "0.1.8", features = ["full"] }
 ```
 
 **可用的 features：**
@@ -207,9 +207,9 @@ sa-token-plugin-axum = { version = "0.1.7", features = ["full"] }
 
 ```toml
 [dependencies]
-sa-token-core = "0.1.7"
-sa-token-storage-memory = "0.1.7"
-sa-token-plugin-axum = "0.1.7"
+sa-token-core = "0.1.8"
+sa-token-storage-memory = "0.1.8"
+sa-token-plugin-axum = "0.1.8"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 ```
@@ -244,7 +244,7 @@ async fn main() {
 **添加 Redis feature 到依赖：**
 ```toml
 [dependencies]
-sa-token-plugin-axum = { version = "0.1.5", features = ["redis"] }
+sa-token-plugin-axum = { version = "0.1.8", features = ["redis"] }
 ```
 
 **使用简化导入：**
@@ -828,9 +828,14 @@ warp::serve(routes)
 
 ## 📋 版本历史
 
-### 版本 0.1.7（当前版本）
+### 版本 0.1.8（当前版本）
 
 **新增功能：**
+- 🎁 **简化依赖管理**：
+  - 所有插件现在支持直接基于版本的依赖（无需 workspace.dependencies）
+  - 一行导入：`use sa_token_plugin_axum::*;` 包含所有需要的功能
+  - 插件自动重新导出核心类型、宏和存储实现
+  - 简化了示例代码的依赖结构
 - 🛠️ **代码质量改进**：
   - 修复了所有插件中的模糊全局重导出警告
   - 移除了宏实现中的未使用变量
@@ -846,6 +851,13 @@ warp::serve(routes)
   - 改进了过程宏中的错误传播
   - 更好地集成框架特定的错误类型
   - 添加了详细的错误上下文以便调试
+
+**改进：**
+- 减少了 95% 的编译时警告
+- 提高了代码可读性和可维护性
+- 增强了开发体验，API 设计更清晰
+- 更好地集成 IDE 工具和文档
+- 修复了所有示例项目以适配新的依赖结构
 
 **改进：**
 - 减少了 95% 的编译时警告
