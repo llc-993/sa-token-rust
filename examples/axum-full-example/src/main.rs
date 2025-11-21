@@ -112,6 +112,8 @@ async fn main() -> anyhow::Result<()> {
         // StpUtil 演示接口
         .route("/api/demo/stp-util", get(demo_stp_util_api))
         
+        // 添加 SaTokenLayer 中间件来提取和验证 Token
+        .layer(SaTokenLayer::new(app_state.sa_token.clone()))
         .with_state(app_state);
     
     // 6. 启动服务器
@@ -141,6 +143,8 @@ async fn init_test_permissions() {
             "user:create".to_string(),
             "user:update".to_string(),
             "user:delete".to_string(),
+            "user:read".to_string(),
+            "user:write".to_string(),
             "system:config".to_string(),
             "system:log".to_string(),
             "admin:*".to_string(),
@@ -153,6 +157,7 @@ async fn init_test_permissions() {
     ).await.unwrap();
     
     tracing::info!("  ✓ admin: 权限=[user:*, system:*, admin:*], 角色=[admin, user]");
+    tracing::info!("  ✓ admin: permissions=[user:*, system:*, admin:*], roles=[admin, user]");
     
     // ========== 普通用户 (user) ==========
     StpUtil::set_permissions(
@@ -216,17 +221,24 @@ async fn register(
 // ==================== 需要登录的接口 ====================
 
 #[sa_check_login]
-async fn user_info(
-    State(state): State<AppState>,
-) -> Result<Json<ApiResponse<UserInfo>>, ApiError> {
-    // 实际应用中应该从token中获取用户ID
-    let user_id = "user_123";
+async fn user_info() -> Result<Json<ApiResponse<UserInfo>>, ApiError> {
+    // 从当前上下文获取用户 ID（StpUtil 会自动从 SaTokenContext 中获取）
+    // Get user ID from current context (StpUtil automatically gets from SaTokenContext)
+    let login_id = StpUtil::get_login_id_as_string()
+        .map_err(|e| ApiError::Unauthorized(format!("获取用户ID失败: {}", e)))?;
     
+    // 根据 login_id 获取用户信息（实际应用中应该查询数据库）
+    // Get user info based on login_id (in real app, query database)
     let info = UserInfo {
-        id: user_id.to_string(),
-        username: "testuser".to_string(),
-        nickname: "测试用户".to_string(),
-        email: Some("test@example.com".to_string()),
+        id: login_id.clone(),
+        username: login_id.clone(),
+        nickname: match login_id.as_str() {
+            "admin" => "管理员",
+            "user" => "普通用户",
+            "guest" => "访客",
+            _ => "未知用户",
+        }.to_string(),
+        email: Some(format!("{}@example.com", login_id)),
     };
     
     Ok(Json(ApiResponse::success(info)))

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 sa-token-plugin-poem = { path = "../../sa-token-plugin-poem" }
+sa-token-core = { path = "../../sa-token-core" }
 poem = "3.0"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

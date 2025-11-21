@@ -117,6 +117,8 @@ impl SaTokenStateBuilder {
     
     /// 构建 Sa-Token 状态
     pub fn build(self) -> SaTokenState {
+        // config_builder.build() 已经自动初始化了 StpUtil
+        // config_builder.build() already auto-initializes StpUtil
         let manager = self.config_builder.build();
         
         // 注册事件监听器
@@ -124,9 +126,8 @@ impl SaTokenStateBuilder {
             manager.event_bus().register(listener);
         }
         
-        // 自动初始化全局 StpUtil
-        sa_token_core::StpUtil::init_manager(manager.clone());
-        
+        // 直接创建 SaTokenState，config_builder.build() 已经初始化了 StpUtil
+        // Create SaTokenState directly, config_builder.build() already initialized StpUtil
         SaTokenState {
             manager: Arc::new(manager),
         }

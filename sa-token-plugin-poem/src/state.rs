@@ -77,9 +77,12 @@ impl SaTokenStateBuilder {
             Arc::new(sa_token_storage_memory::MemoryStorage::new())
         });
         
-        let manager = Arc::new(SaTokenManager::new(storage, config));
+        let manager = SaTokenManager::new(storage, config);
         
-        SaTokenState::new(manager)
+        // 自动初始化全局 StpUtil | Auto-initialize global StpUtil
+        sa_token_core::StpUtil::init_manager(manager.clone());
+        
+        SaTokenState::new(Arc::new(manager))
     }
 }
 

@@ -246,7 +246,13 @@ impl SaTokenStateBuilder {
     }
     
     pub fn build(self) -> SaTokenState {
+        // config_builder.build() 已经自动初始化了 StpUtil
+        // config_builder.build() already auto-initializes StpUtil
         let manager = self.config_builder.build();
-        SaTokenState::from_manager(manager)
+        // 直接创建 SaTokenState，不再调用 from_manager 避免重复初始化
+        // Create SaTokenState directly, don't call from_manager to avoid duplicate initialization
+        SaTokenState {
+            manager: Arc::new(manager),
+        }
     }
 }

@@ -12,11 +12,75 @@ use std::sync::Arc;
 use poem::{
     Route, Server, listener::TcpListener, 
     handler, web::Json, web::Data, EndpointExt,
-    Result as PoemResult, Response, IntoResponse,
+    Result as PoemResult,
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use sa_token_plugin_poem::*;
+
+/// API 错误类型
+pub enum ApiError {
+    Unauthorized(String),
+    Forbidden(String),
+    InternalError(String),
+}
+
+// 实现 From<SaTokenError> for ApiError
+// SaTokenError 是从 sa_token_plugin_poem 重新导出的 sa_token_core::SaTokenError
+impl From<SaTokenError> for ApiError {
+    fn from(err: SaTokenError) -> Self {
+        match err {
+            SaTokenError::NotLogin => {
+                ApiError::Unauthorized("User not logged in".to_string())
+            }
+            SaTokenError::PermissionDenied 
+            | SaTokenError::PermissionDeniedDetail(_) => {
+                ApiError::Forbidden("Permission denied".to_string())
+            }
+            SaTokenError::RoleDenied(_) => {
+                ApiError::Forbidden("Role required".to_string())
+            }
+            _ => ApiError::InternalError(format!("Authentication error: {}", err)),
+        }
+    }
+}
+
+// 实现 From<sa_token_core::SaTokenError> for ApiError（宏返回的类型）
+impl From<sa_token_core::SaTokenError> for ApiError {
+    fn from(err: sa_token_core::SaTokenError) -> Self {
+        match err {
+            sa_token_core::SaTokenError::NotLogin => {
+                ApiError::Unauthorized("User not logged in".to_string())
+            }
+            sa_token_core::SaTokenError::PermissionDenied 
+            | sa_token_core::SaTokenError::PermissionDeniedDetail(_) => {
+                ApiError::Forbidden("Permission denied".to_string())
+            }
+            sa_token_core::SaTokenError::RoleDenied(_) => {
+                ApiError::Forbidden("Role required".to_string())
+            }
+            _ => ApiError::InternalError(format!("Authentication error: {}", err)),
+        }
+    }
+}
+
+impl From<ApiError> for poem::Error {
+    fn from(err: ApiError) -> Self {
+        let (status, message) = match err {
+            ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
+            ApiError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+        };
+        
+        poem::Error::from_string(
+            serde_json::json!({
+                "code": status.as_u16(),
+                "message": message,
+            }).to_string(),
+            status
+        )
+    }
+}
 
 /// API 响应结构
 #[derive(Debug, Serialize)]
@@ -88,12 +152,12 @@ async fn main() -> Result<(), std::io::Error> {
         .at("/api/health", poem::get(health_check))
         .at("/api/auth/login", poem::post(login))
         
-        // 需要登录的接口
+        // 需要登录的接口（使用宏）
         .at("/api/user/info", poem::get(user_info))
         .at("/api/user/permissions", poem::get(list_permissions))
         .at("/api/user/roles", poem::get(list_roles))
         
-        // 需要权限的接口
+        // 需要权限的接口（使用宏自动检查）
         .at("/api/admin/users", poem::get(list_users))
         .at("/api/admin/config", poem::get(admin_config))
         
@@ -200,7 +264,7 @@ async fn login(
     };
     
     if !valid {
-        return Ok(Json(ApiResponse::error(401, "用户名或密码错误".to_string())));
+        return Ok(Json(ApiResponse::error(401, "Invalid username or password".to_string())));
     }
     
     // 执行登录
@@ -231,59 +295,54 @@ async fn login(
 
 // ==================== 需要登录的接口 ====================
 
-/// 获取用户信息
+/// 获取用户信息（使用宏检查登录）
+#[sa_check_login]
 #[handler]
-async fn user_info(token: SaTokenExtractor) -> Json<ApiResponse<serde_json::Value>> {
-    tracing::info!("📋 获取用户信息: user_id={}", token.login_id());
+async fn user_info() -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    // 从当前上下文获取用户 ID
+    // Get user ID from current context
+    let login_id = StpUtil::get_login_id_as_string()?;
     
-    let permissions = StpUtil::get_permissions(token.login_id()).await;
-    let roles = StpUtil::get_roles(token.login_id()).await;
+    let permissions = StpUtil::get_permissions(&login_id).await;
+    let roles = StpUtil::get_roles(&login_id).await;
     
-    Json(ApiResponse::success(serde_json::json!({
-        "user_id": token.login_id(),
+    Ok(Json(ApiResponse::success(serde_json::json!({
+        "user_id": login_id,
         "permissions": permissions,
         "roles": roles,
-    })))
+    }))))
 }
 
-/// 查询用户权限列表
+/// 查询用户权限列表（使用宏检查登录）
+#[sa_check_login]
 #[handler]
-async fn list_permissions(
-    LoginIdExtractor(user_id): LoginIdExtractor
-) -> Json<ApiResponse<Vec<String>>> {
-    tracing::info!("📋 查询用户权限: user_id={}", user_id);
+async fn list_permissions() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> {
+    // 从当前上下文获取用户 ID
+    let login_id = StpUtil::get_login_id_as_string()?;
     
-    let permissions = StpUtil::get_permissions(&user_id).await;
+    let permissions = StpUtil::get_permissions(&login_id).await;
     
-    Json(ApiResponse::success(permissions))
+    Ok(Json(ApiResponse::success(permissions)))
 }
 
-/// 查询用户角色列表
+/// 查询用户角色列表（使用宏检查登录）
+#[sa_check_login]
 #[handler]
-async fn list_roles(
-    LoginIdExtractor(user_id): LoginIdExtractor
-) -> Json<ApiResponse<Vec<String>>> {
-    tracing::info!("📋 查询用户角色: user_id={}", user_id);
+async fn list_roles() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> {
+    // 从当前上下文获取用户 ID
+    let login_id = StpUtil::get_login_id_as_string()?;
     
-    let roles = StpUtil::get_roles(&user_id).await;
+    let roles = StpUtil::get_roles(&login_id).await;
     
-    Json(ApiResponse::success(roles))
+    Ok(Json(ApiResponse::success(roles)))
 }
 
 // ==================== 需要权限的接口 ====================
 
 /// 获取用户列表（需要 user:list 权限）
+#[sa_check_permission("user:list")]
 #[handler]
-async fn list_users(
-    LoginIdExtractor(user_id): LoginIdExtractor
-) -> PoemResult<Json<ApiResponse<Vec<String>>>> {
-    tracing::info!("📋 获取用户列表: user_id={}", user_id);
-    
-    // 检查权限
-    if !StpUtil::has_permission(&user_id, "user:list").await {
-        return Ok(Json(ApiResponse::error(403, "权限不足：需要 user:list 权限".to_string())));
-    }
-    
+async fn list_users() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> {
     let users = vec![
         "admin".to_string(),
         "user1".to_string(),
@@ -294,16 +353,8 @@ async fn list_users(
 }
 
 /// 管理员配置（需要 admin 角色）
+#[sa_check_role("admin")]
 #[handler]
-async fn admin_config(
-    LoginIdExtractor(user_id): LoginIdExtractor
-) -> PoemResult<Json<ApiResponse<String>>> {
-    tracing::info!("⚙️  获取管理员配置: user_id={}", user_id);
-    
-    // 检查角色
-    if !StpUtil::has_role(&user_id, "admin").await {
-        return Ok(Json(ApiResponse::error(403, "权限不足：需要 admin 角色".to_string())));
-    }
-    
+async fn admin_config() -> Result<Json<ApiResponse<String>>, ApiError> {
     Ok(Json(ApiResponse::success("Admin configuration data".to_string())))
 }
