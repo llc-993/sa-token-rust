@@ -1005,6 +1005,6 @@ For developers integrating sa-token-rust, this guide helps understand and handle
 
 ---
 
-**Version**: 0.1.2  
-**Last Updated**: 2025-10-14
+**Version**: 0.1.8  
+**Last Updated**: 2025-01-15
 
