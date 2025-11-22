@@ -12,7 +12,7 @@ Adapter layer for sa-token-rust framework integration.
 
 ```toml
 [dependencies]
-sa-token-adapter = "0.1.10"
+sa-token-adapter = "0.1.11"
 async-trait = "0.1"
 ```
 

@@ -133,7 +133,7 @@ All plugins provide:
 ```toml
 [dependencies]
 # All-in-one package - includes core, macros, and storage
-sa-token-plugin-axum = "0.1.10"  # Default: memory storage
+sa-token-plugin-axum = "0.1.11"  # Default: memory storage
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 ```
@@ -152,13 +152,13 @@ use sa_token_plugin_axum::*;  // ✨ Everything you need!
 **Choose your storage backend with features:**
 ```toml
 # Redis storage
-sa-token-plugin-axum = { version = "0.1.10", features = ["redis"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["redis"] }
 
 # Multiple storage backends
-sa-token-plugin-axum = { version = "0.1.10", features = ["memory", "redis"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["memory", "redis"] }
 
 # All storage backends
-sa-token-plugin-axum = { version = "0.1.10", features = ["full"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["full"] }
 ```
 
 **Available features:**
@@ -182,9 +182,9 @@ If you prefer fine-grained control, you can still import packages separately:
 
 ```toml
 [dependencies]
-sa-token-core = "0.1.10"
-sa-token-storage-memory = "0.1.10"
-sa-token-plugin-axum = "0.1.10"
+sa-token-core = "0.1.11"
+sa-token-storage-memory = "0.1.11"
+sa-token-plugin-axum = "0.1.11"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 ```
@@ -219,7 +219,7 @@ async fn main() {
 **Add Redis feature to your dependency:**
 ```toml
 [dependencies]
-sa-token-plugin-axum = { version = "0.1.10", features = ["redis"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["redis"] }
 ```
 
 **With simplified import:**

@@ -158,7 +158,7 @@ sa-token-rust/
 ```toml
 [dependencies]
 # 一站式包 - 包含核心、宏和存储
-sa-token-plugin-axum = "0.1.10"  # 默认：内存存储
+sa-token-plugin-axum = "0.1.11"  # 默认：内存存储
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 ```
@@ -177,13 +177,13 @@ use sa_token_plugin_axum::*;  // ✨ 你需要的一切！
 **通过 features 选择存储后端：**
 ```toml
 # Redis 存储
-sa-token-plugin-axum = { version = "0.1.10", features = ["redis"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["redis"] }
 
 # 多个存储后端
-sa-token-plugin-axum = { version = "0.1.10", features = ["memory", "redis"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["memory", "redis"] }
 
 # 所有存储后端
-sa-token-plugin-axum = { version = "0.1.10", features = ["full"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["full"] }
 ```
 
 **可用的 features：**
@@ -207,9 +207,9 @@ sa-token-plugin-axum = { version = "0.1.10", features = ["full"] }
 
 ```toml
 [dependencies]
-sa-token-core = "0.1.10"
-sa-token-storage-memory = "0.1.10"
-sa-token-plugin-axum = "0.1.10"
+sa-token-core = "0.1.11"
+sa-token-storage-memory = "0.1.11"
+sa-token-plugin-axum = "0.1.11"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 ```
@@ -244,7 +244,7 @@ async fn main() {
 **添加 Redis feature 到依赖：**
 ```toml
 [dependencies]
-sa-token-plugin-axum = { version = "0.1.10", features = ["redis"] }
+sa-token-plugin-axum = { version = "0.1.11", features = ["redis"] }
 ```
 
 **使用简化导入：**
