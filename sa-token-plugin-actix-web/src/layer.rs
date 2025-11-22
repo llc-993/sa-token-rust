@@ -98,14 +98,24 @@ fn extract_token_from_request(req: &ServiceRequest, state: &SaTokenState) -> Opt
     let adapter = ActixRequestAdapter::new(req.request());
     let token_name = &state.manager.config.token_name;
     
+    // 1. 优先从 Header 中获取（检查 token_name 配置的头）
     if let Some(token) = adapter.get_header(token_name) {
         return Some(extract_bearer_token(&token));
     }
     
+    // 2. 如果 token_name 不是 "Authorization"，也尝试从 "Authorization" 头获取
+    if token_name != "Authorization" {
+        if let Some(token) = adapter.get_header("Authorization") {
+            return Some(extract_bearer_token(&token));
+        }
+    }
+    
+    // 3. 从 Cookie 中获取
     if let Some(token) = adapter.get_cookie(token_name) {
         return Some(token);
     }
     
+    // 4. 从 Query 参数中获取
     if let Some(query) = req.query_string().split('&').find_map(|pair| {
         let mut parts = pair.split('=');
         if let (Some(key), Some(value)) = (parts.next(), parts.next()) {

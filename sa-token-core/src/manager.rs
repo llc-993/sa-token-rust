@@ -231,33 +231,44 @@ impl SaTokenManager {
     
     /// 登出：删除指定 token
     pub async fn logout(&self, token: &TokenValue) -> SaTokenResult<()> {
+        tracing::debug!("Manager: 开始 logout，token: {}", token);
+        
         // 先从存储获取 token 信息，用于触发事件（不调用 get_token_info 避免递归）
         let key = format!("sa:token:{}", token.as_str());
+        tracing::debug!("Manager: 查询 token 信息，key: {}", key);
+        
         let token_info_str = self.storage.get(&key).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
         
         let token_info = if let Some(value) = token_info_str {
+            tracing::debug!("Manager: 找到 token 信息: {}", value);
             serde_json::from_str::<TokenInfo>(&value).ok()
         } else {
+            tracing::debug!("Manager: 未找到 token 信息");
             None
         };
         
         // 删除 token
+        tracing::debug!("Manager: 删除 token，key: {}", key);
         self.storage.delete(&key).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        tracing::debug!("Manager: token 已从存储中删除");
         
         // 触发登出事件
         if let Some(info) = token_info.clone() {
+            tracing::debug!("Manager: 触发登出事件，login_id: {}, login_type: {}", info.login_id, info.login_type);
             let event = SaTokenEvent::logout(&info.login_id, token.as_str())
                 .with_login_type(&info.login_type);
             self.event_bus.publish(event).await;
             
             // 如果有在线用户管理，通知用户下线
             if let Some(online_mgr) = &self.online_manager {
+                tracing::debug!("Manager: 标记用户下线，login_id: {}", info.login_id);
                 online_mgr.mark_offline(&info.login_id, token.as_str()).await;
             }
         }
         
+        tracing::debug!("Manager: logout 完成，token: {}", token);
         Ok(())
     }
     

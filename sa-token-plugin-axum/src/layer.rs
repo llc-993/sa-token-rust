@@ -103,8 +103,9 @@ where
 /// 
 /// 按优先级顺序查找 Token：
 /// 1. HTTP Header - `<token_name>: <token>` 或 `<token_name>: Bearer <token>`
-/// 2. Cookie - `<token_name>=<token>`
-/// 3. Query Parameter - `?<token_name>=<token>`
+/// 2. HTTP Header - `Authorization: <token>` 或 `Authorization: Bearer <token>`（标准头）
+/// 3. Cookie - `<token_name>=<token>`
+/// 4. Query Parameter - `?<token_name>=<token>`
 /// 
 /// # 参数
 /// - `request` - HTTP 请求
@@ -118,17 +119,24 @@ fn extract_token_from_request<T>(request: &Request<T>, state: &SaTokenState) -> 
     // 从配置中获取 token_name
     let token_name = &state.manager.config.token_name;
     
-    // 1. 优先从 Header 中获取
+    // 1. 优先从 Header 中获取（检查 token_name 配置的头）
     if let Some(token) = adapter.get_header(token_name) {
         return Some(extract_bearer_token(&token));
     }
     
-    // 2. 从 Cookie 中获取
+    // 2. 如果 token_name 不是 "Authorization"，也尝试从 "Authorization" 头获取
+    if token_name != "Authorization" {
+        if let Some(token) = adapter.get_header("Authorization") {
+            return Some(extract_bearer_token(&token));
+        }
+    }
+    
+    // 3. 从 Cookie 中获取
     if let Some(token) = adapter.get_cookie(token_name) {
         return Some(token);
     }
     
-    // 3. 从 Query 参数中获取
+    // 4. 从 Query 参数中获取
     if let Some(query) = request.uri().query() {
         if let Some(token) = parse_query_param(query, token_name) {
             return Some(token);
