@@ -28,7 +28,7 @@ impl SaTokenMiddleware {
 
 impl<S, B> Transform<S, ServiceRequest> for SaTokenMiddleware
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response=ServiceResponse<B>, Error=Error> + 'static,
     S::Future: 'static,
     B: 'static,
 {
@@ -37,7 +37,7 @@ where
     type InitError = ();
     type Transform = SaTokenMiddlewareService<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
-    
+
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(SaTokenMiddlewareService {
             service: Rc::new(service),
@@ -53,22 +53,25 @@ pub struct SaTokenMiddlewareService<S> {
 
 impl<S, B> Service<ServiceRequest> for SaTokenMiddlewareService<S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response=ServiceResponse<B>, Error=Error> + 'static,
     S::Future: 'static,
     B: 'static,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
-    
+    type Future = Pin<Box<dyn Future<Output=Result<Self::Response, Self::Error>>>>;
+
     forward_ready!(service);
-    
+
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let service = Rc::clone(&self.service);
         let state = self.state.clone();
         
         Box::pin(async move {
             let mut ctx = SaTokenContext::new();
+            
+            tracing::debug!("Sa-Token: 开始处理请求 {} {}", req.method(), req.path());
+            
             // 提取 token
             if let Some(token_str) = extract_token_from_request(&req, &state) {
                 tracing::debug!("Sa-Token: extracted token from request: {}", token_str);
@@ -76,18 +79,24 @@ where
                 
                 // 验证 token
                 if state.manager.is_valid(&token).await {
+                    tracing::debug!("Sa-Token: token 验证成功");
                     // 存储 token
                     req.extensions_mut().insert(token.clone());
                     
                     // 获取并存储 login_id
                     if let Ok(token_info) = state.manager.get_token_info(&token).await {
                         let login_id = token_info.login_id.clone();
+                        tracing::debug!("Sa-Token: login_id = {}", login_id);
                         req.extensions_mut().insert(login_id.clone());
                         ctx.token = Some(token.clone());
                         ctx.token_info = Some(Arc::new(token_info));
                         ctx.login_id = Some(login_id);
                     }
+                } else {
+                    tracing::debug!("Sa-Token: token 验证失败");
                 }
+            } else {
+                tracing::debug!("Sa-Token: 未提取到 token");
             }
             
             SaTokenContext::set_current(ctx);
@@ -111,7 +120,7 @@ impl SaCheckLoginMiddleware {
 
 impl<S, B> Transform<S, ServiceRequest> for SaCheckLoginMiddleware
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response=ServiceResponse<B>, Error=Error> + 'static,
     S::Future: 'static,
     B: 'static,
 {
@@ -120,7 +129,7 @@ where
     type InitError = ();
     type Transform = SaCheckLoginMiddlewareService<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
-    
+
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(SaCheckLoginMiddlewareService {
             service: Rc::new(service),
@@ -136,39 +145,39 @@ pub struct SaCheckLoginMiddlewareService<S> {
 
 impl<S, B> Service<ServiceRequest> for SaCheckLoginMiddlewareService<S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response=ServiceResponse<B>, Error=Error> + 'static,
     S::Future: 'static,
     B: 'static,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
-    
+    type Future = Pin<Box<dyn Future<Output=Result<Self::Response, Self::Error>>>>;
+
     forward_ready!(service);
-    
+
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let service = Rc::clone(&self.service);
         let state = self.state.clone();
-        
+
         Box::pin(async move {
             let mut ctx = SaTokenContext::new();
             // 提取 token
             if let Some(token_str) = extract_token_from_request(&req, &state) {
                 tracing::debug!("Sa-Token(login-check): extracted token from request: {}", token_str);
                 let token = TokenValue::new(token_str);
-                
+
                 // 验证 token
                 if state.manager.is_valid(&token).await {
                     // 存储 token 和 login_id
                     req.extensions_mut().insert(token.clone());
-                    
+
                     if let Ok(token_info) = state.manager.get_token_info(&token).await {
                         let login_id = token_info.login_id.clone();
                         req.extensions_mut().insert(login_id.clone());
                         ctx.token = Some(token.clone());
                         ctx.token_info = Some(Arc::new(token_info));
                         ctx.login_id = Some(login_id);
-                        
+
                         // 设置上下文
                         SaTokenContext::set_current(ctx);
                         let result = service.call(req).await;
@@ -177,7 +186,7 @@ where
                     }
                 }
             }
-            
+
             // 未登录，返回 401
             Err(ErrorUnauthorized(serde_json::json!({
                 "code": 401,
@@ -192,17 +201,29 @@ fn extract_token_from_request(req: &ServiceRequest, state: &SaTokenState) -> Opt
     let adapter = ActixRequestAdapter::new(req.request());
     let token_name = &state.manager.config.token_name;
     
-    // 1. 优先从 Header 中获取
+    tracing::debug!("Sa-Token: 尝试从请求提取 token，token_name: {}", token_name);
+    
+    // 1. 优先从 Header 中获取（检查 token_name 配置的头）
     if let Some(token) = adapter.get_header(token_name) {
+        tracing::debug!("Sa-Token: 从 Header[{}] 获取到 token", token_name);
         return Some(extract_bearer_token(&token));
     }
     
-    // 2. 从 Cookie 中获取
+    // 2. 如果 token_name 不是 "Authorization"，也尝试从 "Authorization" 头获取
+    if token_name != "Authorization" {
+        if let Some(token) = adapter.get_header("Authorization") {
+            tracing::debug!("Sa-Token: 从 Header[Authorization] 获取到 token");
+            return Some(extract_bearer_token(&token));
+        }
+    }
+    
+    // 3. 从 Cookie 中获取
     if let Some(token) = adapter.get_cookie(token_name) {
+        tracing::debug!("Sa-Token: 从 Cookie[{}] 获取到 token", token_name);
         return Some(token);
     }
     
-    // 3. 从 Query 参数中获取
+    // 4. 从 Query 参数中获取
     if let Some(query) = req.query_string().split('&').find_map(|pair| {
         let mut parts = pair.split('=');
         if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
@@ -212,9 +233,11 @@ fn extract_token_from_request(req: &ServiceRequest, state: &SaTokenState) -> Opt
         }
         None
     }) {
+        tracing::debug!("Sa-Token: 从 Query[{}] 获取到 token", token_name);
         return Some(query);
     }
     
+    tracing::debug!("Sa-Token: 所有位置都未找到 token");
     None
 }
 

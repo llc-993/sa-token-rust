@@ -152,7 +152,13 @@ impl StpUtil {
     
     /// 会话登出
     pub async fn logout(token: &TokenValue) -> SaTokenResult<()> {
-        Self::get_manager().logout(token).await
+        tracing::debug!("开始执行 logout，token: {}", token);
+        let result = Self::get_manager().logout(token).await;
+        match &result {
+            Ok(_) => tracing::debug!("logout 执行成功，token: {}", token),
+            Err(e) => tracing::debug!("logout 执行失败，token: {}, 错误: {}", token, e),
+        }
+        result
     }
     
     pub async fn logout_with_manager(
@@ -208,7 +214,14 @@ impl StpUtil {
     /// ```
     pub async fn logout_current() -> SaTokenResult<()> {
         let token = Self::get_token_value()?;
-        Self::logout(&token).await
+        tracing::debug!("成功获取 token: {}", token);
+        
+        let result = Self::logout(&token).await;
+        match &result {
+            Ok(_) => tracing::debug!("logout_current 执行成功，token: {}", token),
+            Err(e) => tracing::debug!("logout_current 执行失败，token: {}, 错误: {}", token, e),
+        }
+        result
     }
     
     /// 检查当前会话是否登录（无参数，返回 bool）
