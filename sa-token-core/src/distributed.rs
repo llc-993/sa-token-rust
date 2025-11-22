@@ -1,242 +1,448 @@
 //! Distributed Session Management Module | 分布式 Session 管理模块
 //!
-//! # Code Flow Logic | 代码流程逻辑
+//! # Overview | 概述
 //!
-//! ## English
-//! 
-//! ### Overview
-//! This module provides distributed session management for microservices architecture.
-//! It enables session sharing across multiple services with service authentication,
-//! session attributes management, and automatic timeout handling.
-//! 
-//! ### Service Registration Flow
+//! This module enables **distributed session management** for microservices architecture,
+//! allowing multiple services to share authentication sessions seamlessly.
+//! 本模块为微服务架构提供**分布式 Session 管理**，允许多个服务无缝共享认证会话。
+//!
+//! ## Architecture Context | 架构上下文
+//!
 //! ```text
-//! 1. Create ServiceCredential
-//!    ├─→ service_id: Unique service identifier
-//!    ├─→ service_name: Human-readable name
-//!    ├─→ secret_key: Service authentication secret
-//!    ├─→ permissions: List of permissions
-//!    └─→ created_at: Registration timestamp
-//!    ↓
-//! 2. DistributedSessionManager.register_service(credential)
-//!    └─→ Store in service_credentials HashMap
-//!    ↓
-//! 3. Service Registered Successfully
-//! ```
-//! 
-//! ### Service Authentication Flow
-//! ```text
-//! 1. Service Requests Access
-//!    ├─→ Provide service_id
-//!    └─→ Provide secret_key
-//!    ↓
-//! 2. DistributedSessionManager.verify_service(service_id, secret)
-//!    ├─→ Look up service in credentials map
-//!    ├─→ Compare secret_key
-//!    └─→ Return ServiceCredential if valid
-//!    ↓
-//! 3. Authentication Result
-//!    ├─→ Success: Return ServiceCredential
-//!    └─→ Failure: Return PermissionDenied error
-//! ```
-//! 
-//! ### Session Creation Flow
-//! ```text
-//! 1. User Logs In on Any Service
-//!    ↓
-//! 2. create_session(login_id, token)
-//!    ├─→ Generate unique session_id (UUID)
-//!    ├─→ Record service_id (which service created it)
-//!    ├─→ Set timestamps (create_time, last_access)
-//!    └─→ Initialize empty attributes HashMap
-//!    ↓
-//! 3. Save to Distributed Storage
-//!    ├─→ storage.save_session(session, ttl)
-//!    └─→ TTL: session_timeout duration
-//!    ↓
-//! 4. Return DistributedSession
-//! ```
-//! 
-//! ### Cross-Service Session Access Flow
-//! ```text
-//! 1. Service A Creates Session
-//!    session_id: "uuid-123"
-//!    service_id: "service-a"
-//!    login_id: "user123"
-//!    ↓
-//! 2. Service B Accesses Session
-//!    get_session("uuid-123")
-//!    ↓
-//! 3. Retrieve from Distributed Storage
-//!    ├─→ storage.get_session(session_id)
-//!    └─→ Returns full session data
-//!    ↓
-//! 4. Service B Reads/Modifies Session
-//!    ├─→ Access attributes
-//!    ├─→ Update last_access time
-//!    └─→ Save back to storage
-//! ```
-//! 
-//! ### Session Attributes Flow
-//! ```text
-//! 1. set_attribute(session_id, key, value)
-//!    ├─→ Get current session
-//!    ├─→ session.attributes.insert(key, value)
-//!    ├─→ Update last_access timestamp
-//!    └─→ Save updated session
-//!    ↓
-//! 2. get_attribute(session_id, key)
-//!    ├─→ Get session from storage
-//!    └─→ Return attributes.get(key)
-//!    ↓
-//! 3. remove_attribute(session_id, key)
-//!    ├─→ Get current session
-//!    ├─→ session.attributes.remove(key)
-//!    └─→ Save updated session
-//! ```
-//! 
-//! ### Session Cleanup Flow
-//! ```text
-//! 1. delete_session(session_id)
-//!    └─→ storage.delete_session(session_id)
-//!    ↓
-//! 2. delete_all_sessions(login_id)
-//!    ├─→ get_sessions_by_login_id(login_id)
-//!    └─→ For each session: delete_session(id)
-//!    ↓
-//! 3. Automatic Cleanup (TTL-based)
-//!    └─→ Storage backend expires sessions after timeout
-//! ```
-//! 
-//! ### Multi-Session Management
-//! ```text
-//! One user can have multiple sessions:
-//! 
-//! user123:
-//!   ├─→ Session 1 (created by service-a, web device)
-//!   ├─→ Session 2 (created by service-b, mobile device)
-//!   └─→ Session 3 (created by service-c, desktop app)
-//! 
-//! All sessions share the same login_id but have unique session_ids
-//! Each service can access any session via distributed storage
+//! ┌────────────────────────────────────────────────────────────────────┐
+//! │                   Microservices Architecture                       │
+//! │                   微服务架构                                        │
+//! └────────────────────────────────────────────────────────────────────┘
+//!
+//!    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+//!    │  Service A   │  │  Service B   │  │  Service C   │
+//!    │  (User API)  │  │  (Order API) │  │  (Pay API)   │
+//!    └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+//!           │                  │                  │
+//!           └──────────────────┼──────────────────┘
+//!                              │
+//!                    ┌─────────▼──────────┐
+//!                    │  Distributed       │
+//!                    │  Session Storage   │
+//!                    │  (Redis/Database)  │
+//!                    └────────────────────┘
+//!
+//! Each service can:
+//! 每个服务可以：
+//!   1. Create sessions for users
+//!      为用户创建会话
+//!   2. Access sessions created by other services
+//!      访问其他服务创建的会话
+//!   3. Share user authentication state
+//!      共享用户认证状态
 //! ```
 //!
-//! ## 中文
-//! 
-//! ### 概述
-//! 本模块为微服务架构提供分布式 Session 管理。
-//! 它支持多个服务之间的 Session 共享，包括服务认证、Session 属性管理和自动超时处理。
-//! 
-//! ### 服务注册流程
+//! ## Key Use Cases | 关键使用场景
+//!
+//! ### 1. Single Sign-On (SSO) Across Services | 跨服务单点登录
+//!
 //! ```text
-//! 1. 创建 ServiceCredential
-//!    ├─→ service_id: 唯一服务标识符
-//!    ├─→ service_name: 可读服务名称
-//!    ├─→ secret_key: 服务认证密钥
-//!    ├─→ permissions: 权限列表
-//!    └─→ created_at: 注册时间戳
-//!    ↓
-//! 2. DistributedSessionManager.register_service(credential)
-//!    └─→ 存储到 service_credentials HashMap
-//!    ↓
-//! 3. 服务注册成功
+//! Scenario: User logs in to Service A and accesses Service B
+//! 场景：用户登录服务 A 并访问服务 B
+//!
+//! 1. User → Service A: Login
+//!    用户 → 服务 A：登录
+//!    ├─ Service A creates session: session_id = "abc123"
+//!    │  服务 A 创建会话：session_id = "abc123"
+//!    └─ Saves to distributed storage
+//!       保存到分布式存储
+//!
+//! 2. User → Service B: Request with session_id = "abc123"
+//!    用户 → 服务 B：请求带 session_id = "abc123"
+//!    ├─ Service B retrieves session from storage
+//!    │  服务 B 从存储中获取会话
+//!    ├─ Validates user is authenticated
+//!    │  验证用户已认证
+//!    └─ Processes request ✅
+//!       处理请求 ✅
+//!
+//! No need to log in again! 无需再次登录！
 //! ```
-//! 
-//! ### 服务认证流程
+//!
+//! ### 2. Session Sharing for User Context | 会话共享用户上下文
+//!
 //! ```text
-//! 1. 服务请求访问
-//!    ├─→ 提供 service_id
-//!    └─→ 提供 secret_key
-//!    ↓
-//! 2. DistributedSessionManager.verify_service(service_id, secret)
-//!    ├─→ 在凭证映射中查找服务
-//!    ├─→ 比较 secret_key
-//!    └─→ 如果有效则返回 ServiceCredential
-//!    ↓
-//! 3. 认证结果
-//!    ├─→ 成功: 返回 ServiceCredential
-//!    └─→ 失败: 返回 PermissionDenied 错误
+//! Service A stores: { "user_role": "admin", "department": "IT" }
+//! 服务 A 存储：{ "user_role": "admin", "department": "IT" }
+//!
+//! Service B reads: Same session attributes available
+//! 服务 B 读取：相同的会话属性可用
+//!
+//! Service C updates: { "last_order": "order_123" }
+//! 服务 C 更新：{ "last_order": "order_123" }
+//!
+//! All services share the same session state!
+//! 所有服务共享相同的会话状态！
 //! ```
-//! 
-//! ### Session 创建流程
+//!
+//! ### 3. Multi-Device Session Management | 多设备会话管理
+//!
 //! ```text
-//! 1. 用户在任意服务上登录
-//!    ↓
-//! 2. create_session(login_id, token)
-//!    ├─→ 生成唯一 session_id (UUID)
-//!    ├─→ 记录 service_id (创建它的服务)
-//!    ├─→ 设置时间戳 (create_time, last_access)
-//!    └─→ 初始化空的 attributes HashMap
-//!    ↓
-//! 3. 保存到分布式存储
-//!    ├─→ storage.save_session(session, ttl)
-//!    └─→ TTL: session_timeout 持续时间
-//!    ↓
-//! 4. 返回 DistributedSession
+//! User: user_123
+//!   ├─ Session 1: Web (Service A)
+//!   │  会话 1：网页（服务 A）
+//!   ├─ Session 2: Mobile (Service B)
+//!   │  会话 2：移动端（服务 B）
+//!   └─ Session 3: Desktop (Service C)
+//!      会话 3：桌面端（服务 C）
+//!
+//! All sessions can be:
+//! 所有会话可以：
+//!   - Listed: get_sessions_by_login_id()
+//!   - Managed individually
+//!   - Terminated all at once: delete_all_sessions()
 //! ```
-//! 
-//! ### 跨服务 Session 访问流程
+//!
+//! ## Integration with Sa-Token | 与 Sa-Token 的集成
+//!
 //! ```text
-//! 1. 服务 A 创建 Session
-//!    session_id: "uuid-123"
-//!    service_id: "service-a"
-//!    login_id: "user123"
-//!    ↓
-//! 2. 服务 B 访问 Session
-//!    get_session("uuid-123")
-//!    ↓
-//! 3. 从分布式存储获取
-//!    ├─→ storage.get_session(session_id)
-//!    └─→ 返回完整 session 数据
-//!    ↓
-//! 4. 服务 B 读取/修改 Session
-//!    ├─→ 访问属性
-//!    ├─→ 更新 last_access 时间
-//!    └─→ 保存回存储
+//! ┌─────────────────────────────────────────────────────────┐
+//! │               Sa-Token Core Flow                        │
+//! │               Sa-Token 核心流程                          │
+//! └─────────────────────────────────────────────────────────┘
+//!
+//! SaTokenManager::login()
+//!   ├─ 1. Generate token
+//!   │     生成 token
+//!   ├─ 2. Create TokenInfo
+//!   │     创建 TokenInfo
+//!   └─ 3. Create DistributedSession (if enabled)
+//!          创建 DistributedSession（如果启用）
+//!          ├─ session_id: UUID
+//!          ├─ login_id: user's login ID
+//!          ├─ token: access token
+//!          ├─ service_id: current service
+//!          └─ attributes: custom data
+//!
+//! StpUtil::get_session()
+//!   └─ Retrieves distributed session
+//!      获取分布式会话
+//!
+//! StpUtil::logout()
+//!   └─ Deletes distributed session(s)
+//!      删除分布式会话
 //! ```
-//! 
-//! ### Session 属性流程
+
+//!
+//! ## Workflow Diagrams | 工作流程图
+//!
+//! ### Complete Session Lifecycle | 完整会话生命周期
+//!
 //! ```text
-//! 1. set_attribute(session_id, key, value)
-//!    ├─→ 获取当前 session
-//!    ├─→ session.attributes.insert(key, value)
-//!    ├─→ 更新 last_access 时间戳
-//!    └─→ 保存更新后的 session
-//!    ↓
-//! 2. get_attribute(session_id, key)
-//!    ├─→ 从存储获取 session
-//!    └─→ 返回 attributes.get(key)
-//!    ↓
-//! 3. remove_attribute(session_id, key)
-//!    ├─→ 获取当前 session
-//!    ├─→ session.attributes.remove(key)
-//!    └─→ 保存更新后的 session
+//! ┌──────────────────────────────────────────────────────────────────┐
+//! │                    Session Lifecycle                             │
+//! │                    会话生命周期                                   │
+//! └──────────────────────────────────────────────────────────────────┘
+//!
+//! User                Service A           Storage           Service B
+//! 用户                服务 A              存储              服务 B
+//!  │                     │                   │                   │
+//!  │  1. Login           │                   │                   │
+//!  │  登录               │                   │                   │
+//!  ├────────────────────▶│                   │                   │
+//!  │                     │  2. create_session()                  │
+//!  │                     │  创建会话          │                   │
+//!  │                     │  ├─ session_id: uuid                  │
+//!  │                     │  ├─ login_id: user_123                │
+//!  │                     │  ├─ token: access_token               │
+//!  │                     │  └─ service_id: service-a             │
+//!  │                     │                   │                   │
+//!  │                     │  3. save_session()│                   │
+//!  │                     │  保存会话          │                   │
+//!  │                     ├──────────────────▶│                   │
+//!  │                     │                   │  Store with TTL   │
+//!  │                     │                   │  存储并设置 TTL    │
+//!  │                     │                   │                   │
+//!  │  4. session_id      │                   │                   │
+//!  │  返回会话 ID        │                   │                   │
+//!  │◀────────────────────│                   │                   │
+//!  │                     │                   │                   │
+//!  │  5. Request to Service B with session_id                    │
+//!  │  带 session_id 请求服务 B                                    │
+//!  ├────────────────────────────────────────────────────────────▶│
+//!  │                     │                   │                   │
+//!  │                     │                   │  6. get_session() │
+//!  │                     │                   │  获取会话          │
+//!  │                     │                   │◀──────────────────│
+//!  │                     │                   │                   │
+//!  │                     │                   │  7. Return session│
+//!  │                     │                   │  返回会话数据      │
+//!  │                     │                   ├──────────────────▶│
+//!  │                     │                   │                   │
+//!  │                     │                   │  8. refresh_session()
+//!  │                     │                   │  刷新会话          │
+//!  │                     │                   │  (update last_access)
+//!  │                     │                   │◀──────────────────│
+//!  │                     │                   │                   │
+//!  │  9. Response        │                   │                   │
+//!  │  响应               │                   │                   │
+//!  │◀────────────────────────────────────────────────────────────│
+//!  │                     │                   │                   │
+//!  │  10. Logout         │                   │                   │
+//!  │  登出               │                   │                   │
+//!  ├────────────────────▶│                   │                   │
+//!  │                     │  11. delete_session()                 │
+//!  │                     │  删除会话          │                   │
+//!  │                     ├──────────────────▶│                   │
+//!  │                     │                   │  Remove from storage
+//!  │                     │                   │  从存储中移除      │
+//!  │                     │                   │                   │
+//!  │  12. Logout Success │                   │                   │
+//!  │  登出成功           │                   │                   │
+//!  │◀────────────────────│                   │                   │
+//!  │                     │                   │                   │
 //! ```
-//! 
-//! ### Session 清理流程
+//!
+//! ### Service Authentication Flow | 服务认证流程
+//!
 //! ```text
-//! 1. delete_session(session_id)
-//!    └─→ storage.delete_session(session_id)
-//!    ↓
-//! 2. delete_all_sessions(login_id)
-//!    ├─→ get_sessions_by_login_id(login_id)
-//!    └─→ 对每个 session: delete_session(id)
-//!    ↓
-//! 3. 自动清理 (基于 TTL)
-//!    └─→ 存储后端在超时后自动过期 sessions
+//! ┌──────────────────────────────────────────────────────────────────┐
+//! │                Service Inter-Communication                       │
+//! │                服务间通信                                         │
+//! └──────────────────────────────────────────────────────────────────┘
+//!
+//! Service B          Service A (Session Manager)          Storage
+//! 服务 B             服务 A（会话管理器）                  存储
+//!   │                        │                               │
+//!   │  1. Register           │                               │
+//!   │  注册服务              │                               │
+//!   │  ├─ service_id         │                               │
+//!   │  ├─ service_name       │                               │
+//!   │  ├─ secret_key         │                               │
+//!   │  └─ permissions        │                               │
+//!   ├───────────────────────▶│                               │
+//!   │                        │  Store credentials            │
+//!   │                        │  存储凭证                      │
+//!   │                        │  (in memory)                  │
+//!   │                        │                               │
+//!   │  2. Registered ✅      │                               │
+//!   │◀───────────────────────│                               │
+//!   │                        │                               │
+//!   │  3. Access session     │                               │
+//!   │  访问会话              │                               │
+//!   │  ├─ service_id         │                               │
+//!   │  ├─ secret_key         │                               │
+//!   │  └─ session_id         │                               │
+//!   ├───────────────────────▶│                               │
+//!   │                        │  4. verify_service()          │
+//!   │                        │  验证服务                      │
+//!   │                        │  ├─ Lookup service            │
+//!   │                        │  └─ Compare secret_key        │
+//!   │                        │                               │
+//!   │                        │  5. get_session()             │
+//!   │                        │  获取会话                      │
+//!   │                        ├──────────────────────────────▶│
+//!   │                        │                               │
+//!   │                        │  6. Return session            │
+//!   │                        │  返回会话                      │
+//!   │                        │◀──────────────────────────────│
+//!   │                        │                               │
+//!   │  7. Session data ✅    │                               │
+//!   │◀───────────────────────│                               │
+//!   │                        │                               │
 //! ```
+//!
+//! ## Storage Backends | 存储后端
+//!
+//! The module is storage-agnostic. You can implement custom backends:
+//! 本模块与存储无关。您可以实现自定义后端：
+//!
+//! ### Redis Implementation (Recommended) | Redis 实现（推荐）
+//!
+//! ```rust,ignore
+//! use redis::AsyncCommands;
+//!
+//! pub struct RedisDistributedStorage {
+//!     client: redis::Client,
+//! }
+//!
+//! #[async_trait]
+//! impl DistributedSessionStorage for RedisDistributedStorage {
+//!     async fn save_session(&self, session: DistributedSession, ttl: Option<Duration>) 
+//!         -> Result<(), SaTokenError> 
+//!     {
+//!         let mut conn = self.client.get_async_connection().await?;
+//!         let key = format!("distributed:session:{}", session.session_id);
+//!         let value = serde_json::to_string(&session)?;
+//!         
+//!         if let Some(ttl) = ttl {
+//!             conn.set_ex(&key, value, ttl.as_secs() as usize).await?;
+//!         } else {
+//!             conn.set(&key, value).await?;
+//!         }
+//!         
+//!         // Index by login_id
+//!         let index_key = format!("distributed:login:{}", session.login_id);
+//!         conn.sadd(index_key, &session.session_id).await?;
+//!         
+//!         Ok(())
+//!     }
+//!     
+//!     // ... other methods
+//! }
+//! ```
+//!
+//! ### Database Implementation | 数据库实现
+//!
+//! ```rust,ignore
+//! use sqlx::PgPool;
+//!
+//! pub struct PostgresDistributedStorage {
+//!     pool: PgPool,
+//! }
+//!
+//! #[async_trait]
+//! impl DistributedSessionStorage for PostgresDistributedStorage {
+//!     async fn save_session(&self, session: DistributedSession, ttl: Option<Duration>) 
+//!         -> Result<(), SaTokenError> 
+//!     {
+//!         let expires_at = ttl.map(|t| Utc::now() + chrono::Duration::from_std(t).unwrap());
+//!         
+//!         sqlx::query!(
+//!             "INSERT INTO distributed_sessions 
+//!              (session_id, login_id, token, service_id, attributes, expires_at)
+//!              VALUES ($1, $2, $3, $4, $5, $6)
+//!              ON CONFLICT (session_id) DO UPDATE 
+//!              SET attributes = $5, last_access = NOW()",
+//!             session.session_id,
+//!             session.login_id,
+//!             session.token,
+//!             session.service_id,
+//!             serde_json::to_value(&session.attributes)?,
+//!             expires_at,
+//!         )
+//!         .execute(&self.pool)
+//!         .await?;
+//!         
+//!         Ok(())
+//!     }
+//!     
+//!     // ... other methods
+//! }
+//! ```
+//!
+//! ## Best Practices | 最佳实践
+//!
+//! ### 1. Service Registration | 服务注册
+//!
+//! ```rust,ignore
+//! // Initialize each service with unique credentials
+//! // 为每个服务初始化唯一凭证
+//! let credential = ServiceCredential {
+//!     service_id: "user-service".to_string(),
+//!     service_name: "User Management Service".to_string(),
+//!     secret_key: generate_secure_secret(), // Use crypto-secure generation
+//!     created_at: Utc::now(),
+//!     permissions: vec!["user.read".to_string(), "user.write".to_string()],
+//! };
+//! manager.register_service(credential).await;
+//! ```
+//!
+//! ### 2. Session Creation with Context | 带上下文的会话创建
+//!
+//! ```rust,ignore
+//! // Create session with user context
+//! // 创建带用户上下文的会话
+//! let session = manager.create_session(login_id, token).await?;
+//!
+//! // Add relevant attributes immediately
+//! // 立即添加相关属性
+//! manager.set_attribute(&session.session_id, "user_role".to_string(), "admin".to_string()).await?;
+//! manager.set_attribute(&session.session_id, "department".to_string(), "IT".to_string()).await?;
+//! manager.set_attribute(&session.session_id, "login_device".to_string(), "web".to_string()).await?;
+//! ```
+//!
+//! ### 3. Cross-Service Access Pattern | 跨服务访问模式
+//!
+//! ```rust,ignore
+//! // Service B accesses session created by Service A
+//! // 服务 B 访问服务 A 创建的会话
 //! 
-//! ### 多 Session 管理
+//! // 1. Verify service identity
+//! // 验证服务身份
+//! let service_cred = manager.verify_service("service-b", request.secret).await?;
+//!
+//! // 2. Check permissions
+//! // 检查权限
+//! if !service_cred.permissions.contains(&"session.read".to_string()) {
+//!     return Err(SaTokenError::PermissionDenied);
+//! }
+//!
+//! // 3. Access session
+//! // 访问会话
+//! let session = manager.get_session(&request.session_id).await?;
+//!
+//! // 4. Refresh to keep session alive
+//! // 刷新以保持会话活跃
+//! manager.refresh_session(&session.session_id).await?;
+//! ```
+//!
+//! ### 4. Multi-Device Logout | 多设备登出
+//!
+//! ```rust,ignore
+//! // Logout from all devices
+//! // 从所有设备登出
+//! manager.delete_all_sessions(&login_id).await?;
+//!
+//! // Or logout specific session
+//! // 或登出特定会话
+//! manager.delete_session(&session_id).await?;
+//! ```
+//!
+//! ### 5. Session Monitoring | 会话监控
+//!
+//! ```rust,ignore
+//! // Monitor user's active sessions
+//! // 监控用户的活跃会话
+//! let sessions = manager.get_sessions_by_login_id(&login_id).await?;
+//! 
+//! for session in sessions {
+//!     println!("Session: {} from service: {}, last active: {}", 
+//!         session.session_id,
+//!         session.service_id,
+//!         session.last_access
+//!     );
+//!     
+//!     // Check for suspicious activity
+//!     // 检查可疑活动
+//!     if is_suspicious(&session) {
+//!         manager.delete_session(&session.session_id).await?;
+//!     }
+//! }
+//! ```
+//!
+//! ## Security Considerations | 安全考虑
+//!
 //! ```text
-//! 一个用户可以有多个 sessions:
-//! 
-//! user123:
-//!   ├─→ Session 1 (service-a 创建, web 设备)
-//!   ├─→ Session 2 (service-b 创建, 移动设备)
-//!   └─→ Session 3 (service-c 创建, 桌面应用)
-//! 
-//! 所有 sessions 共享相同的 login_id 但有唯一的 session_ids
-//! 每个服务都可以通过分布式存储访问任何 session
+//! 1. ✅ Service Authentication | 服务认证
+//!    - Each service has unique secret_key
+//!    - Verify credentials before granting access
+//!    - Rotate keys periodically
+//!
+//! 2. ✅ Permission-Based Access | 基于权限的访问
+//!    - Services have explicit permissions
+//!    - Check permissions before operations
+//!    - Implement least-privilege principle
+//!
+//! 3. ✅ Session Timeout | 会话超时
+//!    - Configure appropriate TTL
+//!    - Auto-expire inactive sessions
+//!    - Refresh on active use
+//!
+//! 4. ✅ Data Encryption | 数据加密
+//!    - Encrypt sensitive session attributes
+//!    - Use TLS for inter-service communication
+//!    - Encrypt data at rest in storage
+//!
+//! 5. ✅ Audit Logging | 审计日志
+//!    - Log session creation/deletion
+//!    - Track cross-service access
+//!    - Monitor for anomalies
 //! ```
 
 use crate::error::SaTokenError;
@@ -684,32 +890,80 @@ impl Default for InMemoryDistributedStorage {
 
 #[async_trait]
 impl DistributedSessionStorage for InMemoryDistributedStorage {
+    /// Save session to memory storage | 保存会话到内存存储
+    ///
+    /// # Implementation Details | 实现细节
+    ///
+    /// 1. Stores session in main HashMap by session_id
+    ///    在主 HashMap 中按 session_id 存储会话
+    /// 2. Updates login_index for quick user lookup
+    ///    更新 login_index 以快速查找用户
+    ///
+    /// # Note | 注意
+    ///
+    /// TTL is ignored in memory storage (for simplicity).
+    /// In production, use Redis or similar with built-in TTL support.
+    /// 内存存储中忽略 TTL（为简化实现）。
+    /// 在生产环境中，使用 Redis 或类似的内置 TTL 支持的存储。
     async fn save_session(&self, session: DistributedSession, _ttl: Option<Duration>) -> Result<(), SaTokenError> {
         let session_id = session.session_id.clone();
         let login_id = session.login_id.clone();
         
+        // 1. Store session in main map
+        // 在主映射中存储会话
         let mut sessions = self.sessions.write().await;
         sessions.insert(session_id.clone(), session);
         
+        // 2. Update login index for this user
+        // 更新此用户的登录索引
         let mut index = self.login_index.write().await;
-        index.entry(login_id)
-            .or_insert_with(Vec::new)
-            .push(session_id);
+        let session_list = index.entry(login_id).or_insert_with(Vec::new);
+        
+        // Add only if not already present (prevent duplicates)
+        // 仅在不存在时添加（防止重复）
+        if !session_list.contains(&session_id) {
+            session_list.push(session_id);
+        }
         
         Ok(())
     }
 
+    /// Get session from memory storage | 从内存存储获取会话
+    ///
+    /// # Returns | 返回
+    ///
+    /// * `Ok(Some(session))` - Session found | 找到会话
+    /// * `Ok(None)` - Session not found | 未找到会话
     async fn get_session(&self, session_id: &str) -> Result<Option<DistributedSession>, SaTokenError> {
         let sessions = self.sessions.read().await;
         Ok(sessions.get(session_id).cloned())
     }
 
+    /// Delete session from memory storage | 从内存存储删除会话
+    ///
+    /// # Implementation Details | 实现细节
+    ///
+    /// 1. Removes session from main HashMap
+    ///    从主 HashMap 中移除会话
+    /// 2. Removes session_id from login_index
+    ///    从 login_index 中移除 session_id
+    /// 3. Cleans up empty index entries
+    ///    清理空的索引条目
     async fn delete_session(&self, session_id: &str) -> Result<(), SaTokenError> {
+        // 1. Remove from main storage and get session data
+        // 从主存储中移除并获取会话数据
         let mut sessions = self.sessions.write().await;
         if let Some(session) = sessions.remove(session_id) {
+            // 2. Update login index
+            // 更新登录索引
             let mut index = self.login_index.write().await;
             if let Some(session_ids) = index.get_mut(&session.login_id) {
+                // Remove this session_id from the list
+                // 从列表中移除此 session_id
                 session_ids.retain(|id| id != session_id);
+                
+                // 3. Clean up: remove login_id entry if no sessions left
+                // 清理：如果没有剩余会话，移除 login_id 条目
                 if session_ids.is_empty() {
                     index.remove(&session.login_id);
                 }
@@ -718,16 +972,40 @@ impl DistributedSessionStorage for InMemoryDistributedStorage {
         Ok(())
     }
 
+    /// Get all sessions for a user | 获取用户的所有会话
+    ///
+    /// # Implementation Details | 实现细节
+    ///
+    /// 1. Looks up session_ids in login_index
+    ///    在 login_index 中查找 session_ids
+    /// 2. Retrieves full session data for each session_id
+    ///    为每个 session_id 检索完整的会话数据
+    /// 3. Filters out any missing sessions (cleanup)
+    ///    过滤掉任何缺失的会话（清理）
+    ///
+    /// # Returns | 返回
+    ///
+    /// Vector of all active sessions for the user
+    /// 用户所有活跃会话的向量
     async fn get_sessions_by_login_id(&self, login_id: &str) -> Result<Vec<DistributedSession>, SaTokenError> {
+        // 1. Get session IDs from index
+        // 从索引中获取会话 IDs
         let index = self.login_index.read().await;
         let session_ids = index.get(login_id).cloned().unwrap_or_default();
         
+        // 2. Retrieve full session data
+        // 检索完整的会话数据
         let sessions = self.sessions.read().await;
         let mut result = Vec::new();
+        
         for session_id in session_ids {
             if let Some(session) = sessions.get(&session_id) {
                 result.push(session.clone());
             }
+            // Note: If session not found, it was deleted but index not updated
+            // This is a minor inconsistency acceptable in memory storage
+            // 注意：如果未找到会话，说明会话已删除但索引未更新
+            // 这是内存存储中可接受的小不一致
         }
         
         Ok(result)

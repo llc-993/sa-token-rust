@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use std::collections::HashMap;
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use tokio::sync::RwLock;
 use sa_token_adapter::storage::SaStorage;
 use crate::config::SaTokenConfig;
@@ -71,6 +71,39 @@ impl SaTokenManager {
     
     /// 登录：为指定账号创建 token
     pub async fn login(&self, login_id: impl Into<String>) -> SaTokenResult<TokenValue> {
+        self.login_with_options(login_id, None, None, None, None, None).await
+    }
+    
+    /// 登录：为指定账号创建 token（支持自定义 TokenInfo 字段）
+    /// 
+    /// # 参数 | Parameters
+    /// * `login_id` - 登录用户 ID | Login user ID
+    /// * `login_type` - 登录类型（如 "user", "admin"）| Login type (e.g., "user", "admin")
+    /// * `device` - 设备标识 | Device identifier
+    /// * `extra_data` - 额外数据 | Extra data
+    /// * `nonce` - 防重放攻击的一次性令牌 | One-time token for replay attack prevention
+    /// * `expire_time` - 自定义过期时间（如果为 None，则使用配置的过期时间）| Custom expiration time (if None, use configured timeout)
+    /// 
+    /// # 示例 | Example
+    /// ```rust,ignore
+    /// let token = manager.login_with_options(
+    ///     "user_123",
+    ///     Some("admin".to_string()),
+    ///     Some("iPhone".to_string()),
+    ///     Some(json!({"ip": "192.168.1.1"})),
+    ///     Some("nonce_123".to_string()),
+    ///     None,
+    /// ).await?;
+    /// ```
+    pub async fn login_with_options(
+        &self,
+        login_id: impl Into<String>,
+        login_type: Option<String>,
+        device: Option<String>,
+        extra_data: Option<serde_json::Value>,
+        nonce: Option<String>,
+        expire_time: Option<DateTime<Utc>>,
+    ) -> SaTokenResult<TokenValue> {
         let login_id = login_id.into();
         
         // 生成 token（支持 JWT）
@@ -78,11 +111,90 @@ impl SaTokenManager {
         
         // 创建 token 信息
         let mut token_info = TokenInfo::new(token.clone(), login_id.clone());
-        token_info.login_type = "default".to_string();
+        
+        // 设置登录类型
+        token_info.login_type = login_type.unwrap_or_else(|| "default".to_string());
+        
+        // 设置设备标识
+        if let Some(device_str) = device {
+            token_info.device = Some(device_str);
+        }
+        
+        // 设置额外数据
+        if let Some(extra) = extra_data {
+            token_info.extra_data = Some(extra);
+        }
+        
+        // 设置 nonce
+        if let Some(nonce_str) = nonce {
+            token_info.nonce = Some(nonce_str);
+        }
         
         // 设置过期时间
-        if let Some(timeout) = self.config.timeout_duration() {
-            token_info.expire_time = Some(Utc::now() + Duration::from_std(timeout).unwrap());
+        if let Some(custom_expire_time) = expire_time {
+            token_info.expire_time = Some(custom_expire_time);
+        }
+        // 注意：如果 expire_time 为 None，login_with_token_info 会自动使用配置的过期时间
+        
+        // 调用底层方法
+        self.login_with_token_info(token_info).await
+    }
+    
+    /// 登录：使用完整的 TokenInfo 对象创建 token
+    /// 
+    /// # 参数 | Parameters
+    /// * `token_info` - 完整的 TokenInfo 对象，包含所有 token 信息 | Complete TokenInfo object containing all token information
+    /// 
+    /// # 说明 | Notes
+    /// * TokenInfo 中的 `token` 字段将被使用（如果已设置），否则会自动生成
+    /// * TokenInfo 中的 `login_id` 字段必须设置
+    /// * 如果 `expire_time` 为 None，将使用配置的过期时间
+    /// * The `token` field in TokenInfo will be used (if set), otherwise will be auto-generated
+    /// * The `login_id` field in TokenInfo must be set
+    /// * If `expire_time` is None, will use configured timeout
+    /// 
+    /// # 示例 | Example
+    /// ```rust,ignore
+    /// use sa_token_core::token::{TokenInfo, TokenValue};
+    /// use chrono::Utc;
+    /// 
+    /// let mut token_info = TokenInfo::new(
+    ///     TokenValue::new("custom_token_123"),
+    ///     "user_123"
+    /// );
+    /// token_info.login_type = "admin".to_string();
+    /// token_info.device = Some("iPhone".to_string());
+    /// token_info.extra_data = Some(json!({"ip": "192.168.1.1"}));
+    /// 
+    /// let token = manager.login_with_token_info(token_info).await?;
+    /// ```
+    pub async fn login_with_token_info(&self, mut token_info: TokenInfo) -> SaTokenResult<TokenValue> {
+        let login_id = token_info.login_id.clone();
+        
+        // 如果 token_info 中没有 token，则生成一个
+        let token = if token_info.token.as_str().is_empty() {
+            TokenGenerator::generate_with_login_id(&self.config, &login_id)
+        } else {
+            token_info.token.clone()
+        };
+        
+        // 更新 token_info 中的 token
+        token_info.token = token.clone();
+        
+        // 更新最后活跃时间为当前时间
+        token_info.update_active_time();
+        
+        // 如果过期时间为 None，使用配置的过期时间
+        let now = Utc::now();
+        if token_info.expire_time.is_none() {
+            if let Some(timeout) = self.config.timeout_duration() {
+                token_info.expire_time = Some(now + Duration::from_std(timeout).unwrap());
+            }
+        }
+        
+        // 确保登录类型不为空
+        if token_info.login_type.is_empty() {
+            token_info.login_type = "default".to_string();
         }
         
         // 存储 token 信息
@@ -94,7 +206,13 @@ impl SaTokenManager {
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
         
         // 保存 login_id 到 token 的映射（用于根据 login_id 查找 token）
-        let login_token_key = format!("sa:login:token:{}", login_id);
+        // 如果 login_type 不为空，使用包含 login_type 的 key 格式避免冲突
+        // If login_type is not empty, use key format with login_type to avoid conflicts
+        let login_token_key = if !token_info.login_type.is_empty() && token_info.login_type != "default" {
+            format!("sa:login:token:{}:{}", login_id, token_info.login_type)
+        } else {
+            format!("sa:login:token:{}", login_id)
+        };
         self.storage.set(&login_token_key, token.as_str(), self.config.timeout_duration()).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
         

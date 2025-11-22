@@ -28,7 +28,7 @@ pub async fn demo_is_login() -> Json<serde_json::Value> {
 
 /// 演示：获取 login_id（String）
 pub async fn demo_get_login_id_string() -> Result<Json<serde_json::Value>, StatusCode> {
-    match StpUtil::get_login_id_as_string() {
+    match StpUtil::get_login_id_as_string().await {
         Ok(login_id) => Ok(Json(json!({
             "code": 200,
             "data": { "login_id": login_id }
@@ -39,7 +39,7 @@ pub async fn demo_get_login_id_string() -> Result<Json<serde_json::Value>, Statu
 
 /// 演示：获取 login_id（i64）
 pub async fn demo_get_login_id_long() -> Result<Json<serde_json::Value>, StatusCode> {
-    match StpUtil::get_login_id_as_long() {
+    match StpUtil::get_login_id_as_long().await {
         Ok(user_id) => Ok(Json(json!({
             "code": 200,
             "data": { "user_id": user_id }

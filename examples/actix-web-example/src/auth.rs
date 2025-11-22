@@ -10,7 +10,7 @@ use actix_web::{
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
-use sa_token_plugin_actix_web::SaTokenState;
+use sa_token_plugin_actix_web::StpUtil;
 
 // ==================== 请求/响应类型 ====================
 // ==================== Request/Response Types ====================
@@ -160,7 +160,6 @@ impl ResponseError for ApiError {
 // ==================== Login Endpoint ====================
 
 pub async fn login(
-    state: web::Data<SaTokenState>,
     req: web::Json<LoginRequest>,
 ) -> Result<web::Json<ApiResponse<LoginResponse>>, ApiError> {
     // 验证用户名密码（实际应该查询数据库）
@@ -174,13 +173,12 @@ pub async fn login(
         }
     };
     
-    // 生成token - 使用注入的 sa_token 状态
-    // Generate token - using injected sa_token state
-    let token = state.manager
-        .login(user_id)
+    // 生成token - 使用 StpUtil
+    // Generate token - using StpUtil
+    let token = StpUtil::login(user_id)
         .await
         .map_err(|e| ApiError::InternalError(format!("登录失败 / Login failed: {}", e)))?;
-    
+
     // 获取用户权限和角色（使用 StpUtil）
     // Get user permissions and roles (using StpUtil)
     let permissions = sa_token_plugin_actix_web::StpUtil::get_permissions(user_id).await;
@@ -206,7 +204,7 @@ pub async fn login(
         }.to_string(),
         email: Some(format!("{}@example.com", req.username)),
     };
-    
+
     let response = LoginResponse {
         token: token.to_string(),
         user_info,

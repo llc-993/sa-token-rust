@@ -29,6 +29,8 @@ sa-token-rust provides a complete Single Sign-On (SSO) solution based on ticket 
 - ⏱️ **Ticket Expiration**: Automatic ticket expiration and cleanup
 - 🛡️ **Security Protection**: Service URL matching, replay attack prevention
 - 🔄 **Session Management**: Track all logged-in applications
+- 🔑 **Token Type Isolation**: SSO server and client tokens are isolated by `login_type`
+- 📊 **Enhanced Token Info**: SSO context stored in token `extra_data` for traceability
 
 ### Core Components
 
@@ -772,6 +774,6 @@ cargo run --example sso_example
 
 ---
 
-**Version**: 0.1.9  
+**Version**: 0.1.10  
 **Last Updated**: 2025-01-15
 

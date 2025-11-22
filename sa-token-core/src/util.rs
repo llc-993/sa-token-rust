@@ -123,6 +123,10 @@ impl StpUtil {
     pub async fn login(login_id: impl LoginId) -> SaTokenResult<TokenValue> {
         Self::get_manager().login(login_id.to_login_id()).await
     }
+
+    pub async fn login_with_type(login_id: impl LoginId, _login_type: impl Into<String>) -> SaTokenResult<TokenValue> {
+        Self::get_manager().login(login_id.to_login_id()).await
+    }
     
     /// 登录并设置额外数据 | Login with extra data
     /// 
@@ -243,12 +247,11 @@ impl StpUtil {
     /// # 示例
     /// ```rust,ignore
     /// // 在请求处理函数中
-    /// let login_id = StpUtil::get_login_id_as_string()?;
+    /// let login_id = StpUtil::get_login_id_as_string().await?;
     /// ```
-    pub fn get_login_id_as_string() -> SaTokenResult<String> {
-        let ctx = SaTokenContext::get_current()
-            .ok_or(SaTokenError::NotLogin)?;
-        ctx.login_id.ok_or(SaTokenError::NotLogin)
+    pub async fn get_login_id_as_string() -> SaTokenResult<String> {
+        let token = Self::get_token_value()?;
+        Self::get_login_id(&token).await
     }
     
     /// 获取当前会话的 login_id（i64 类型，无参数）
@@ -256,10 +259,10 @@ impl StpUtil {
     /// # 示例
     /// ```rust,ignore
     /// // 在请求处理函数中
-    /// let user_id = StpUtil::get_login_id_as_long()?;
+    /// let user_id = StpUtil::get_login_id_as_long().await?;
     /// ```
-    pub fn get_login_id_as_long() -> SaTokenResult<i64> {
-        let login_id_str = Self::get_login_id_as_string()?;
+    pub async fn get_login_id_as_long() -> SaTokenResult<i64> {
+        let login_id_str = Self::get_login_id_as_string().await?;
         login_id_str.parse::<i64>()
             .map_err(|_| SaTokenError::LoginIdNotNumber)
     }

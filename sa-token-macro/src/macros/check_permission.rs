@@ -87,7 +87,7 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
     }
     
     let check_code = quote! {
-        let __login_id = sa_token_core::StpUtil::get_login_id_as_string()?;
+        let __login_id = sa_token_core::StpUtil::get_login_id_as_string().await?;
         sa_token_core::StpUtil::check_permission(&__login_id, #perm_value).await?;
     };
     

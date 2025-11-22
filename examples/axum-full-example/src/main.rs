@@ -224,7 +224,7 @@ async fn register(
 async fn user_info() -> Result<Json<ApiResponse<UserInfo>>, ApiError> {
     // 从当前上下文获取用户 ID（StpUtil 会自动从 SaTokenContext 中获取）
     // Get user ID from current context (StpUtil automatically gets from SaTokenContext)
-    let login_id = StpUtil::get_login_id_as_string()
+    let login_id = StpUtil::get_login_id_as_string().await
         .map_err(|e| ApiError::Unauthorized(format!("获取用户ID失败: {}", e)))?;
     
     // 根据 login_id 获取用户信息（实际应用中应该查询数据库）

@@ -9,7 +9,7 @@ default = []
 redis = ["sa-token-plugin-actix-web/redis", "sa-token-storage-redis"]
 
 [dependencies]
-sa-token-plugin-actix-web = { path = "../../sa-token-plugin-actix-web", features = ["memory"] }
+sa-token-plugin-actix-web = { path = "../../sa-token-plugin-actix-web", features = ["redis"] }
 sa-token-storage-redis = { path = "../../sa-token-storage-redis", optional = true }
 
 actix-web = "4.11.0"
