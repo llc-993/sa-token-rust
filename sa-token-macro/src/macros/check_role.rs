@@ -44,7 +44,7 @@ pub fn sa_check_role_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
     
     let check_code = quote! {
-        let __login_id = sa_token_core::StpUtil::get_login_id_as_string()?;
+        let __login_id = sa_token_core::StpUtil::get_login_id_as_string().await?;
         sa_token_core::StpUtil::check_role(&__login_id, #role_value).await?;
     };
     

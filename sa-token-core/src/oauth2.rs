@@ -480,6 +480,22 @@ impl OAuth2Manager {
         Ok(())
     }
 
+    /// Retrieve authorization code information | 获取授权码信息
+    ///
+    /// Fetches the stored authorization code and validates its expiration.
+    /// 获取存储的授权码并验证其过期状态。
+    ///
+    /// # Arguments | 参数
+    /// * `code` - Authorization code to retrieve | 要获取的授权码
+    ///
+    /// # Returns | 返回
+    /// * `Ok(AuthorizationCode)` if code exists and is valid | 授权码存在且有效时返回
+    /// * `Err(OAuth2CodeNotFound)` if code not found | 授权码未找到时
+    /// * `Err(TokenExpired)` if code has expired | 授权码已过期时
+    ///
+    /// # Note | 注意
+    /// Expired codes are automatically cleaned up from storage.
+    /// 过期的授权码会自动从存储中清理。
     pub async fn get_authorization_code(&self, code: &str) -> SaTokenResult<AuthorizationCode> {
         let key = format!("oauth2:code:{}", code);
         let value = self.storage.get(&key).await
@@ -489,6 +505,7 @@ impl OAuth2Manager {
         let auth_code: AuthorizationCode = serde_json::from_str(&value)
             .map_err(|e| SaTokenError::SerializationError(e))?;
         
+        // Check expiration and auto-cleanup if expired
         if Utc::now() > auth_code.expires_at {
             self.storage.delete(&key).await.ok();
             return Err(SaTokenError::TokenExpired);
@@ -497,11 +514,31 @@ impl OAuth2Manager {
         Ok(auth_code)
     }
 
+    /// Consume authorization code (one-time use) | 消费授权码（一次性使用）
+    ///
+    /// Retrieves and deletes the authorization code in one operation.
+    /// 在一次操作中检索并删除授权码。
+    ///
+    /// # Arguments | 参数
+    /// * `code` - Authorization code to consume | 要消费的授权码
+    ///
+    /// # Returns | 返回
+    /// * `Ok(AuthorizationCode)` if code is valid and consumed | 授权码有效且已消费时返回
+    /// * `Err(OAuth2CodeNotFound)` if code not found | 授权码未找到时
+    /// * `Err(TokenExpired)` if code has expired | 授权码已过期时
+    ///
+    /// # Security | 安全性
+    /// This ensures the code can only be used once, preventing replay attacks.
+    /// 这确保授权码只能使用一次，防止重放攻击。
     pub async fn consume_authorization_code(&self, code: &str) -> SaTokenResult<AuthorizationCode> {
+        // First, get and validate the code
         let auth_code = self.get_authorization_code(code).await?;
+        
+        // Then delete it (consume it)
         let key = format!("oauth2:code:{}", code);
         self.storage.delete(&key).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
+        
         Ok(auth_code)
     }
 
@@ -539,23 +576,48 @@ impl OAuth2Manager {
         client_secret: &str,
         redirect_uri: &str,
     ) -> SaTokenResult<AccessToken> {
+        // 1. Verify client credentials
         if !self.verify_client(client_id, client_secret).await? {
             return Err(SaTokenError::OAuth2InvalidCredentials);
         }
 
+        // 2. Consume the authorization code (one-time use)
         let auth_code = self.consume_authorization_code(code).await?;
 
+        // 3. Validate client ID matches
         if auth_code.client_id != client_id {
             return Err(SaTokenError::OAuth2ClientIdMismatch);
         }
 
+        // 4. Validate redirect URI matches
         if auth_code.redirect_uri != redirect_uri {
             return Err(SaTokenError::OAuth2RedirectUriMismatch);
         }
 
+        // 5. Generate and return access token
         self.generate_access_token(&auth_code.client_id, &auth_code.user_id, auth_code.scope).await
     }
 
+    /// Generate access token and refresh token | 生成访问令牌和刷新令牌
+    ///
+    /// Creates a new access token with an optional refresh token for the user.
+    /// 为用户创建新的访问令牌和可选的刷新令牌。
+    ///
+    /// # Arguments | 参数
+    /// * `client_id` - Client identifier | 客户端标识符
+    /// * `user_id` - User identifier | 用户标识符
+    /// * `scope` - Granted permissions | 授予的权限范围
+    ///
+    /// # Returns | 返回
+    /// * `Ok(AccessToken)` with access_token and refresh_token | 带有访问令牌和刷新令牌
+    ///
+    /// # Storage | 存储
+    /// - Access token: `oauth2:token:{access_token}` (TTL: token_ttl)
+    /// - Refresh token: `oauth2:refresh:{refresh_token}` (TTL: refresh_token_ttl)
+    ///
+    /// # Note | 注意
+    /// Both tokens are stored with TTL for automatic expiration cleanup.
+    /// 两个令牌都使用 TTL 存储，以便自动清理过期令牌。
     pub async fn generate_access_token(
         &self,
         client_id: &str,
@@ -566,6 +628,7 @@ impl OAuth2Manager {
         let access_token = format!("at_{}", Uuid::new_v4().simple());
         let refresh_token = format!("rt_{}", Uuid::new_v4().simple());
 
+        // Create token info for storage
         let token_info = OAuth2TokenInfo {
             access_token: access_token.clone(),
             client_id: client_id.to_string(),
@@ -576,6 +639,7 @@ impl OAuth2Manager {
             refresh_token: Some(refresh_token.clone()),
         };
 
+        // Store access token with TTL
         let key = format!("oauth2:token:{}", access_token);
         let value = serde_json::to_string(&token_info)
             .map_err(|e| SaTokenError::SerializationError(e))?;
@@ -584,6 +648,7 @@ impl OAuth2Manager {
         self.storage.set(&key, &value, ttl).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
+        // Store refresh token with longer TTL
         let refresh_key = format!("oauth2:refresh:{}", refresh_token);
         let refresh_value = serde_json::json!({
             "user_id": user_id,
@@ -595,6 +660,7 @@ impl OAuth2Manager {
         self.storage.set(&refresh_key, &refresh_value, refresh_ttl).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
+        // Return the access token response
         Ok(AccessToken {
             access_token,
             token_type: "Bearer".to_string(),
@@ -629,6 +695,7 @@ impl OAuth2Manager {
         let token_info: OAuth2TokenInfo = serde_json::from_str(&value)
             .map_err(|e| SaTokenError::SerializationError(e))?;
         
+        // Check expiration and auto-cleanup if expired
         if Utc::now() > token_info.expires_at {
             self.storage.delete(&key).await.ok();
             return Err(SaTokenError::TokenExpired);
@@ -663,10 +730,12 @@ impl OAuth2Manager {
         client_id: &str,
         client_secret: &str,
     ) -> SaTokenResult<AccessToken> {
+        // 1. Verify client credentials
         if !self.verify_client(client_id, client_secret).await? {
             return Err(SaTokenError::OAuth2InvalidCredentials);
         }
 
+        // 2. Get refresh token data from storage
         let key = format!("oauth2:refresh:{}", refresh_token);
         let value = self.storage.get(&key).await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?
@@ -675,6 +744,7 @@ impl OAuth2Manager {
         let data: serde_json::Value = serde_json::from_str(&value)
             .map_err(|e| SaTokenError::SerializationError(e))?;
         
+        // 3. Validate client ID matches
         let stored_client_id = data["client_id"].as_str()
             .ok_or_else(|| SaTokenError::OAuth2InvalidRefreshToken)?;
         
@@ -682,6 +752,7 @@ impl OAuth2Manager {
             return Err(SaTokenError::OAuth2ClientIdMismatch);
         }
 
+        // 4. Extract user ID and scope
         let user_id = data["user_id"].as_str()
             .ok_or_else(|| SaTokenError::OAuth2InvalidRefreshToken)?;
         
@@ -691,6 +762,7 @@ impl OAuth2Manager {
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
             .collect();
 
+        // 5. Generate new access token with same scope
         self.generate_access_token(client_id, user_id, scope).await
     }
 

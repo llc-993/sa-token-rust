@@ -10,10 +10,12 @@
 //! 3. 使用认证宏 / Use authentication macros
 //! 4. 实现完整的认证流程 / Implement complete authentication flow
 
+use std::future::Future;
 use actix_web::{
     web, App, HttpServer, Responder,
     middleware::Logger,
 };
+use tracing::log;
 use sa_token_plugin_actix_web::*;
 
 mod auth;
@@ -21,6 +23,7 @@ mod stp_util_demo;
 mod conf;
 
 use auth::*;
+use sa_token_plugin_actix_web::error::SaTokenResult;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
@@ -36,7 +39,15 @@ async fn main() -> anyhow::Result<()> {
 
     // 1. 初始化 Sa-Token (StpUtil会自动初始化)
     // 1. Initialize Sa-Token (StpUtil will be automatically initialized)
-    let sa_token_manager = conf::init_sa_token(None)
+    
+    // 配置 Redis 存储
+    // Configure Redis storage
+    let redis_config = conf::RedisConfig {
+        url: "redis://:Aq23-hjPwFB3mBDNFp3W1@localhost:6379/0".to_string(),
+        prefix: Some("sa_token:".to_string()),
+    };
+
+    let sa_token_manager = conf::init_sa_token(Some(&redis_config))
         .await
         .expect("Sa-Token initialization failed"); // Sa-Token initialization failed ｜Sa-Token 初始化失败
 
@@ -86,42 +97,42 @@ async fn main() -> anyhow::Result<()> {
             // 公开接口（不需要认证）
             // Public endpoints (no authentication required)
             .route("/api/login", web::post().to(login))
-        // 都未实现具体逻辑
-        // All endpoints below are commented out (not implemented)
-       .route("/", web::get().to(index))
-         .route("/api/health", web::get().to(health_check))
+            // 都未实现具体逻辑
+            // All endpoints below are commented out (not implemented)
+            .route("/", web::get().to(index))
+            .route("/api/health", web::get().to(health_check))
 
-         .route("/api/register", web::post().to(register))
+            .route("/api/register", web::post().to(register))
 
-         // 需要登录的接口
-         // Endpoints requiring login
-         .route("/api/user/info", web::get().to(user_info))
-         .route("/api/user/profile", web::get().to(user_profile))
+            // 需要登录的接口
+            // Endpoints requiring login
+            .route("/api/user/info", web::get().to(user_info))
+            .route("/api/user/profile", web::get().to(user_profile))
 
-         // 需要特定权限的接口
-         // Endpoints requiring specific permissions
-         .route("/api/user/list", web::get().to(list_users))
-         .route("/api/user/delete", web::post().to(delete_user))
+            // 需要特定权限的接口
+            // Endpoints requiring specific permissions
+            .route("/api/user/list", web::get().to(list_users))
+            .route("/api/user/delete", web::post().to(delete_user))
 
-         // 需要管理员角色的接口
-         // Endpoints requiring admin role
-         .route("/api/admin/panel", web::get().to(admin_panel))
-         .route("/api/admin/stats", web::get().to(admin_stats))
+            // 需要管理员角色的接口
+            // Endpoints requiring admin role
+            .route("/api/admin/panel", web::get().to(admin_panel))
+            .route("/api/admin/stats", web::get().to(admin_stats))
 
-         // 需要多个权限的接口
-         // Endpoints requiring multiple permissions
-         .route("/api/user/manage", web::post().to(manage_user))
+            // 需要多个权限的接口
+            // Endpoints requiring multiple permissions
+            .route("/api/user/manage", web::post().to(manage_user))
 
-         // 权限管理接口（需要 admin 角色）
-         // Permission management endpoints (requires admin role)
-         .route("/api/permission/list", web::get().to(list_permissions))
-         .route("/api/permission/add", web::post().to(add_permission))
-         .route("/api/permission/remove", web::post().to(remove_permission))
-         .route("/api/role/list", web::get().to(list_roles))
+            // 权限管理接口（需要 admin 角色）
+            // Permission management endpoints (requires admin role)
+            .route("/api/permission/list", web::get().to(list_permissions))
+            .route("/api/permission/add", web::post().to(add_permission))
+            .route("/api/permission/remove", web::post().to(remove_permission))
+            .route("/api/role/list", web::get().to(list_roles))
 
-         // StpUtil 演示接口
-         // StpUtil demo endpoint
-         .route("/api/demo/stp-util", web::get().to(demo_stp_util_api))
+            // StpUtil 演示接口
+            // StpUtil demo endpoint
+            .route("/api/demo/stp-util", web::get().to(demo_stp_util_api))
     })
         .bind("0.0.0.0:3000")?
         .run()
@@ -237,6 +248,32 @@ async fn user_info(
     login_id: LoginIdExtractor,
 ) -> Result<web::Json<ApiResponse<UserInfo>>, ApiError> {
     let user_id = login_id.0;
+
+    // 打印 login_id (i64 类型)
+    // Print login_id (i64 type)
+    let token_value = StpUtil::get_token_value();
+
+    match token_value {
+        Ok(token) => {
+            tracing::info!(" token() 返回值: {}", token);
+        }
+        Err(e) => {
+            tracing::warn!("⚠️ token() failed: {}", e);
+        }
+    }
+
+    let long = StpUtil::get_login_id_as_string();
+    match long {
+        Ok(id) => {
+            tracing::info!("✅ get_login_id_as_long() 返回值: {}", id);
+            tracing::info!("✅ get_login_id_as_long() returned value: {}", id);
+        }
+        Err(e) => {
+            tracing::warn!("⚠️ get_login_id_as_long() 失败: {}", e);
+            tracing::warn!("⚠️ get_login_id_as_long() failed: {}", e);
+        }
+    }
+
 
     let info = UserInfo {
         id: user_id.clone(),

@@ -51,7 +51,7 @@ pub fn sa_check_permissions_and_impl(attr: TokenStream, item: TokenStream) -> To
     }
     
     let check_code = quote! {
-        let __login_id = sa_token_core::StpUtil::get_login_id_as_string()?;
+        let __login_id = sa_token_core::StpUtil::get_login_id_as_string().await?;
         if !sa_token_core::StpUtil::has_permissions_and(&__login_id, &[#(#perm_lits),*]).await {
             return Err(sa_token_core::SaTokenError::PermissionDeniedDetail(String::from(#perm_desc)).into());
         }

@@ -301,7 +301,7 @@ async fn login(
 async fn user_info() -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
     // 从当前上下文获取用户 ID
     // Get user ID from current context
-    let login_id = StpUtil::get_login_id_as_string()?;
+    let login_id = StpUtil::get_login_id_as_string().await?;
     
     let permissions = StpUtil::get_permissions(&login_id).await;
     let roles = StpUtil::get_roles(&login_id).await;
@@ -318,7 +318,7 @@ async fn user_info() -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
 #[handler]
 async fn list_permissions() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> {
     // 从当前上下文获取用户 ID
-    let login_id = StpUtil::get_login_id_as_string()?;
+    let login_id = StpUtil::get_login_id_as_string().await?;
     
     let permissions = StpUtil::get_permissions(&login_id).await;
     
@@ -330,7 +330,7 @@ async fn list_permissions() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> 
 #[handler]
 async fn list_roles() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> {
     // 从当前上下文获取用户 ID
-    let login_id = StpUtil::get_login_id_as_string()?;
+    let login_id = StpUtil::get_login_id_as_string().await?;
     
     let roles = StpUtil::get_roles(&login_id).await;
     

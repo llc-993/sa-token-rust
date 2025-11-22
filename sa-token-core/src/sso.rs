@@ -278,7 +278,16 @@ impl SsoServer {
     /// Determined by checking if SSO session exists
     pub async fn is_logged_in(&self, login_id: &str) -> bool {
         let sessions = self.sessions.read().await;
-        sessions.contains_key(login_id)
+        let has_session = sessions.contains_key(login_id);
+        drop(sessions);
+        
+        // 如果会话存在，进一步验证 Token 是否有效
+        if has_session {
+            let key = format!("sa:login:token:{}:sso", login_id);
+            matches!(self.manager.storage.get(&key).await, Ok(Some(_)))
+        } else {
+            false
+        }
     }
 
     /// 创建票据 | Create ticket
@@ -361,8 +370,20 @@ impl SsoServer {
     /// # 返回 | Returns
     /// 生成的票据 | Generated ticket
     pub async fn login(&self, login_id: String, service: String) -> SaTokenResult<SsoTicket> {
-        let _token = self.manager.login(&login_id).await?;
+        // 使用 login_with_options 创建 SSO 类型的 Token
+        let _token = self.manager.login_with_options(
+            &login_id,
+            Some("sso".to_string()), // 设置 login_type 为 "sso"
+            None,
+            Some(serde_json::json!({
+                "sso_mode": true,
+                "service": service.clone()
+            })),
+            None,
+            None,
+        ).await?;
         
+        // 更新会话
         let mut sessions = self.sessions.write().await;
         sessions.entry(login_id.clone())
             .or_insert_with(|| SsoSession::new(login_id.clone()))
@@ -370,6 +391,7 @@ impl SsoServer {
 
         drop(sessions);
 
+        // 创建并返回票据
         self.create_ticket(login_id, service).await
     }
 
@@ -393,28 +415,58 @@ impl SsoServer {
 
         drop(sessions);
 
-        // 3. 从 Token 管理器中登出 | Logout from Token manager
+        // 3. 从 Token 管理器中登出（登出所有类型的 Token）| Logout from Token manager (all token types)
+        // 3.1 登出 SSO 服务端 Token
+        let sso_key = format!("sa:login:token:{}:sso", login_id);
+        let _ = self.manager.storage.delete(&sso_key).await;
+        
+        // 3.2 登出默认类型 Token
         self.manager.logout_by_login_id(login_id).await?;
 
         // 4. 返回客户端列表供通知 | Return client list for notification
         Ok(clients)
     }
 
+    /// 获取 SSO 会话 | Get SSO session
+    ///
+    /// # 参数 | Parameters
+    /// * `login_id` - 用户登录 ID | User login ID
+    ///
+    /// # 返回 | Returns
+    /// SSO 会话信息（如果存在）| SSO session info (if exists)
     pub async fn get_session(&self, login_id: &str) -> Option<SsoSession> {
         let sessions = self.sessions.read().await;
         sessions.get(login_id).cloned()
     }
 
+    /// 检查会话是否存在 | Check if session exists
+    ///
+    /// # 参数 | Parameters
+    /// * `login_id` - 用户登录 ID | User login ID
+    ///
+    /// # 返回 | Returns
+    /// 会话是否存在 | Whether session exists
     pub async fn check_session(&self, login_id: &str) -> bool {
         let sessions = self.sessions.read().await;
         sessions.contains_key(login_id)
     }
 
+    /// 清理过期票据 | Cleanup expired tickets
+    ///
+    /// 删除所有过期或已使用的票据
+    /// Removes all expired or used tickets
     pub async fn cleanup_expired_tickets(&self) {
         let mut tickets = self.tickets.write().await;
         tickets.retain(|_, ticket| ticket.is_valid());
     }
 
+    /// 获取活跃客户端列表 | Get active clients list
+    ///
+    /// # 参数 | Parameters
+    /// * `login_id` - 用户登录 ID | User login ID
+    ///
+    /// # 返回 | Returns
+    /// 客户端 URL 列表 | List of client URLs
     pub async fn get_active_clients(&self, login_id: &str) -> Vec<String> {
         let sessions = self.sessions.read().await;
         sessions.get(login_id)
@@ -458,6 +510,10 @@ impl SsoClient {
         }
     }
 
+    /// 设置登出回调函数 | Set logout callback
+    ///
+    /// # 参数 | Parameters
+    /// * `callback` - 登出时执行的回调函数 | Callback function to execute on logout
     pub fn with_logout_callback<F>(mut self, callback: F) -> Self
     where
         F: Fn(&str) -> bool + Send + Sync + 'static,
@@ -466,23 +522,57 @@ impl SsoClient {
         self
     }
 
+    /// 生成登录 URL | Generate login URL
+    ///
+    /// # 返回 | Returns
+    /// SSO 服务端登录 URL，包含当前服务的回调地址
+    /// SSO Server login URL with current service callback
     pub fn get_login_url(&self) -> String {
         format!("{}?service={}", self.server_url, urlencoding::encode(&self.service_url))
     }
 
+    /// 生成登出 URL | Generate logout URL
+    ///
+    /// # 返回 | Returns
+    /// SSO 服务端登出 URL，包含当前服务的回调地址
+    /// SSO Server logout URL with current service callback
     pub fn get_logout_url(&self) -> String {
         format!("{}/logout?service={}", self.server_url, urlencoding::encode(&self.service_url))
     }
 
+    /// 检查本地是否已登录 | Check if locally logged in
+    ///
+    /// # 参数 | Parameters
+    /// * `login_id` - 用户登录 ID | User login ID
+    ///
+    /// # 返回 | Returns
+    /// 是否已登录 | Whether logged in
     pub async fn check_local_login(&self, login_id: &str) -> bool {
-        let key = format!("sa:login:token:{}", login_id);
+        // 检查 SSO 客户端类型的登录
+        let key = format!("sa:login:token:{}:sso_client", login_id);
         match self.manager.storage.get(&key).await {
             Ok(Some(_)) => true,
-            _ => false,
+            _ => {
+                // 兼容旧的无类型登录
+                let key_default = format!("sa:login:token:{}", login_id);
+                matches!(self.manager.storage.get(&key_default).await, Ok(Some(_)))
+            }
         }
     }
 
+    /// 处理票据（验证票据合法性）| Process ticket (validate ticket)
+    ///
+    /// # 参数 | Parameters
+    /// * `ticket` - 票据 ID | Ticket ID
+    /// * `service` - 服务 URL | Service URL
+    ///
+    /// # 返回 | Returns
+    /// 处理后的票据信息 | Processed ticket info
+    ///
+    /// # 错误 | Errors
+    /// * `ServiceMismatch` - 服务 URL 不匹配 | Service URL mismatch
     pub async fn process_ticket(&self, ticket: &str, service: &str) -> SaTokenResult<String> {
+        // 验证服务 URL 是否匹配
         if service != self.service_url {
             return Err(SaTokenError::ServiceMismatch);
         }
@@ -490,24 +580,55 @@ impl SsoClient {
         Ok(ticket.to_string())
     }
 
+    /// 通过票据登录（客户端本地登录）| Login by ticket (client-side local login)
+    ///
+    /// # 参数 | Parameters
+    /// * `login_id` - 用户登录 ID | User login ID
+    ///
+    /// # 返回 | Returns
+    /// 生成的本地 Token | Generated local token
     pub async fn login_by_ticket(&self, login_id: String) -> SaTokenResult<String> {
-        let token = self.manager.login(&login_id).await?;
+        // 使用 login_with_options 创建客户端 Token，标记为 SSO 客户端登录
+        let token = self.manager.login_with_options(
+            &login_id,
+            Some("sso_client".to_string()), // 标记为 SSO 客户端
+            None,
+            Some(serde_json::json!({
+                "sso_client": true,
+                "service_url": self.service_url.clone()
+            })),
+            None,
+            None,
+        ).await?;
         Ok(token.to_string())
     }
 
+    /// 处理登出（客户端）| Handle logout (client-side)
+    ///
+    /// # 参数 | Parameters
+    /// * `login_id` - 用户登录 ID | User login ID
     pub async fn handle_logout(&self, login_id: &str) -> SaTokenResult<()> {
+        // 1. 执行登出回调 | Execute logout callback
         if let Some(callback) = &self.logout_callback {
             callback(login_id);
         }
         
+        // 2. 登出 SSO 客户端类型的 Token | Logout SSO client token
+        let sso_client_key = format!("sa:login:token:{}:sso_client", login_id);
+        let _ = self.manager.storage.delete(&sso_client_key).await;
+        
+        // 3. 登出默认类型的 Token（兼容）| Logout default token (compatibility)
         self.manager.logout_by_login_id(login_id).await?;
+        
         Ok(())
     }
 
+    /// 获取 SSO 服务端 URL | Get SSO Server URL
     pub fn server_url(&self) -> &str {
         &self.server_url
     }
 
+    /// 获取当前服务 URL | Get current service URL
     pub fn service_url(&self) -> &str {
         &self.service_url
     }

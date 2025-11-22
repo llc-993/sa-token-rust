@@ -28,8 +28,10 @@ use async_trait::async_trait;
 use sa_token_core::{
     StpUtil, SaTokenConfig, SaTokenManager, 
     SaTokenListener, config::TokenStyle,
+    token::{TokenInfo, TokenValue},
 };
 use sa_token_storage_memory::MemoryStorage;
+use serde_json::json;
 
 /// 简单的事件监听器用于演示 | Simple Event Listener for Demo
 struct DemoListener;
@@ -63,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // 使用 builder 模式初始化，一行代码完成所有配置！
     // Initialize with builder pattern, complete all configuration in one line!
-    let _manager = SaTokenConfig::builder()
+    let manager = SaTokenConfig::builder()
         .token_name("Authorization")
         .timeout(7200)  // 2小时 | 2 hours
         .active_timeout(1800)  // 30分钟无操作超时 | 30 min idle timeout
@@ -87,10 +89,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "─".repeat(60));
     
     let user_id = "user_10086";
-    let token = StpUtil::login(user_id).await?;
     
-    println!("✅ 用户 {} 登录成功 | User {} logged in successfully", user_id, user_id);
+    // 方式1: 最简单的登录方式 | Method 1: Simplest login method
+    let token = StpUtil::login(user_id).await?;
+    println!("✅ 方式1 - 简单登录 | Method 1 - Simple Login:");
+    println!("   StpUtil::login(\"{}\")", user_id);
     println!("   Token: {}\n", token.as_str());
+    
+    // 方式2: 使用 login_with_options 自定义多个字段 | Method 2: Use login_with_options with custom fields
+    let user_id2 = "user_10087";
+    let token2 = manager.login_with_options(
+        user_id2,
+        Some("admin".to_string()),           // login_type
+        Some("iPhone 15 Pro".to_string()),   // device
+        Some(json!({"ip": "192.168.1.100", "location": "Beijing"})), // extra_data
+        Some("nonce_abc123".to_string()),    // nonce
+        None,                                 // expire_time (使用配置的过期时间)
+    ).await?;
+    println!("✅ 方式2 - 自定义字段登录 | Method 2 - Login with Custom Fields:");
+    println!("   manager.login_with_options(login_id, login_type, device, extra_data, nonce, expire_time)");
+    println!("   Token: {}", token2.as_str());
+    
+    // 验证自定义字段 | Verify custom fields
+    let token_info2 = StpUtil::get_token_info(&token2).await?;
+    println!("   - 登录类型 | Login Type: {}", token_info2.login_type);
+    println!("   - 设备信息 | Device: {:?}", token_info2.device);
+    println!("   - 额外数据 | Extra Data: {:?}", token_info2.extra_data);
+    println!("   - Nonce: {:?}\n", token_info2.nonce);
+    
+    // 方式3: 使用完整的 TokenInfo 对象登录 | Method 3: Login with complete TokenInfo object
+    let user_id3 = "user_10088";
+    let mut token_info3 = TokenInfo::new(
+        TokenValue::new(""),  // 空字符串，会自动生成 token
+        user_id3,
+    );
+    token_info3.login_type = "premium".to_string();
+    token_info3.device = Some("MacBook Pro".to_string());
+    token_info3.extra_data = Some(json!({
+        "subscription": "premium",
+        "features": ["unlimited", "priority_support"]
+    }));
+    token_info3.nonce = Some("nonce_premium_xyz".to_string());
+    
+    let token3 = manager.login_with_token_info(token_info3).await?;
+    println!("✅ 方式3 - TokenInfo 对象登录 | Method 3 - Login with TokenInfo Object:");
+    println!("   let mut token_info = TokenInfo::new(...);");
+    println!("   manager.login_with_token_info(token_info)");
+    println!("   Token: {}", token3.as_str());
+    
+    // 验证 TokenInfo 字段 | Verify TokenInfo fields
+    let token_info3_retrieved = StpUtil::get_token_info(&token3).await?;
+    println!("   - 登录类型 | Login Type: {}", token_info3_retrieved.login_type);
+    println!("   - 设备信息 | Device: {:?}", token_info3_retrieved.device);
+    println!("   - 额外数据 | Extra Data: {}", serde_json::to_string_pretty(&token_info3_retrieved.extra_data.unwrap_or(json!(null)))?);
+    println!();
+    
+    // 继续使用第一个 token 进行后续演示 | Continue with first token for subsequent demos
+    let token = token;
     
     // ========================================
     // 步骤 3: 登录状态检查 | Step 3: Check Login Status

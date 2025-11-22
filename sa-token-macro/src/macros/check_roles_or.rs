@@ -51,7 +51,7 @@ pub fn sa_check_roles_or_impl(attr: TokenStream, item: TokenStream) -> TokenStre
     }
     
     let check_code = quote! {
-        let __login_id = sa_token_core::StpUtil::get_login_id_as_string()?;
+        let __login_id = sa_token_core::StpUtil::get_login_id_as_string().await?;
         let mut __has_role = false;
         #(
             if sa_token_core::StpUtil::has_role(&__login_id, #role_lits).await {
