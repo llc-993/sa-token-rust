@@ -160,9 +160,6 @@ impl SaTokenState {
     
     /// 从 SaTokenManager 创建状态
     pub fn from_manager(manager: SaTokenManager) -> Self {
-        // 自动初始化全局 StpUtil
-        sa_token_core::StpUtil::init_manager(manager.clone());
-        
         Self {
             manager: Arc::new(manager),
         }
